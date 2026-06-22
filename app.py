@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import glob
+import re
 
 # ─── Page configuration ───────────────────────────────────────────────────────
 st.set_page_config(
@@ -17,397 +18,87 @@ st.markdown("""
 <head>
 <meta charset="UTF-8">
 <style>
-/* ============================================================
-   ZYRO DYNAMICS — ENTERPRISE PREMIUM UI
-   Single-file inline stylesheet (no external assets)
-   ============================================================ */
-
-/* ── Global tokens ─────────────────────────────────────────── */
 :root{
-  --bg-0:#070b18;
-  --bg-1:#0b1124;
-  --bg-2:#101a36;
-  --glass-bg:rgba(18, 26, 51, 0.55);
-  --glass-brd:rgba(125, 159, 255, 0.18);
-  --glass-brd-hi:rgba(146, 197, 255, 0.45);
-  --neon-cyan:#22d3ee;
-  --neon-violet:#a855f7;
-  --neon-magenta:#f472b6;
-  --neon-blue:#60a5fa;
-  --text-0:#eef2ff;
-  --text-1:#c7d2fe;
-  --text-2:#8b9bc7;
-  --danger:#fca5a5;
-  --danger-bg:rgba(252, 165, 165, 0.08);
-  --ok:#86efac;
+  --bg-0:#070b18;--bg-1:#0b1124;--bg-2:#101a36;
+  --glass-bg:rgba(18,26,51,0.55);--glass-brd:rgba(125,159,255,0.18);
+  --glass-brd-hi:rgba(146,197,255,0.45);
+  --neon-cyan:#22d3ee;--neon-violet:#a855f7;--neon-magenta:#f472b6;--neon-blue:#60a5fa;
+  --text-0:#eef2ff;--text-1:#c7d2fe;--text-2:#8b9bc7;
+  --danger:#fca5a5;--danger-bg:rgba(252,165,165,0.08);
 }
-
-/* ── App background: deep corporate gradient w/ moving aurora ── */
-#AppViewContainer, .stApp, .main, section[data-testid="stAppViewContainer"]{
-  background: radial-gradient(1200px 800px at 10% -10%, rgba(168,85,247,0.18), transparent 60%),
-              radial-gradient(1000px 700px at 100% 0%, rgba(34,211,238,0.16), transparent 55%),
-              radial-gradient(900px 600px at 50% 120%, rgba(96,165,250,0.14), transparent 60%),
-              linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%) !important;
-  background-attachment: fixed !important;
-  color: var(--text-0) !important;
+#AppViewContainer,.stApp,.main,section[data-testid="stAppViewContainer"]{
+  background:radial-gradient(1200px 800px at 10% -10%,rgba(168,85,247,.18),transparent 60%),
+  radial-gradient(1000px 700px at 100% 0%,rgba(34,211,238,.16),transparent 55%),
+  radial-gradient(900px 600px at 50% 120%,rgba(96,165,250,.14),transparent 60%),
+  linear-gradient(160deg,var(--bg-0) 0%,var(--bg-1) 50%,var(--bg-2) 100%)!important;
+  background-attachment:fixed!important;color:var(--text-0)!important;
 }
-
-/* Animated aurora ribbons behind everything */
-.zyro-aurora{
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-.zyro-aurora::before,
-.zyro-aurora::after{
-  content:"";
-  position:absolute;
-  width: 60vw;
-  height: 60vw;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.35;
-  mix-blend-mode: screen;
-}
-.zyro-aurora::before{
-  top:-15%; left:-10%;
-  background: conic-gradient(from 0deg, #22d3ee, #a855f7, #f472b6, #22d3ee);
-  animation: zyro-spin 28s linear infinite;
-}
-.zyro-aurora::after{
-  bottom:-20%; right:-15%;
-  background: conic-gradient(from 180deg, #60a5fa, #22d3ee, #a855f7, #60a5fa);
-  animation: zyro-spin 36s linear infinite reverse;
-}
-@keyframes zyro-spin{
-  0%{transform: rotate(0deg) scale(1);}
-  50%{transform: rotate(180deg) scale(1.08);}
-  100%{transform: rotate(360deg) scale(1);}
-}
-
-/* ── Custom scrollbar ──────────────────────────────────────── */
-*::-webkit-scrollbar{width:10px; height:10px;}
-*::-webkit-scrollbar-track{background: rgba(255,255,255,0.02);}
-*::-webkit-scrollbar-thumb{
-  background: linear-gradient(180deg, var(--neon-cyan), var(--neon-violet));
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover{
-  background: linear-gradient(180deg, var(--neon-violet), var(--neon-magenta));
-  background-clip: padding-box;
-}
-html{scrollbar-color: var(--neon-violet) transparent;}
-
-/* ── Typography ────────────────────────────────────────────── */
-.stApp, .stApp p, .stApp span, .stApp li, .stApp label, .stApp div{
-  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif !important;
-}
-
-/* ── Glass panel primitive ─────────────────────────────────── */
-.zyro-glass{
-  position: relative;
-  background: var(--glass-bg);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
-  border: 1px solid var(--glass-brd);
-  border-radius: 18px;
-  box-shadow:
-    0 10px 40px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.06);
-  overflow: hidden;
-}
-.zyro-glass::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%);
-  background-size: 250% 250%;
-  animation: zyro-shimmer 9s linear infinite;
-  pointer-events:none;
-}
-@keyframes zyro-shimmer{
-  0%{background-position: 200% 0;}
-  100%{background-position: -200% 0;}
-}
-
-/* ── Hero header ───────────────────────────────────────────── */
-.zyro-hero{
-  position: relative;
-  z-index: 2;
-  padding: 2.4rem 2.2rem;
-  margin-bottom: 1.6rem;
-  text-align: center;
-  animation: zyro-fadeUp 0.9s cubic-bezier(.2,.7,.2,1) both;
-}
-.zyro-hero h1{
-  margin:0;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(90deg, #22d3ee, #a855f7, #f472b6, #60a5fa, #22d3ee);
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: zyro-gradient 8s ease infinite;
-  display:inline-block;
-}
-.zyro-hero .glyph{
-  font-size: 2.2rem;
-  vertical-align: middle;
-  display:inline-block;
-  margin-right:.4rem;
-  animation: zyro-float 4s ease-in-out infinite;
-  filter: drop-shadow(0 0 14px rgba(168,85,247,0.55));
-}
-.zyro-hero p{
-  margin: 0.7rem 0 0;
-  color: var(--text-1);
-  font-size: 1rem;
-  opacity: 0.92;
-  letter-spacing: 0.01em;
-}
-.zyro-hero .zyro-divider{
-  width: 70%;
-  margin: 1.1rem auto 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-violet), transparent);
-  border-radius: 2px;
-  opacity:.7;
-}
-@keyframes zyro-gradient{
-  0%{background-position: 0% 50%;}
-  50%{background-position: 100% 50%;}
-  100%{background-position: 0% 50%;}
-}
-@keyframes zyro-float{
-  0%,100%{transform: translateY(0);}
-  50%{transform: translateY(-6px);}
-}
-@keyframes zyro-fadeUp{
-  from{opacity:0; transform: translateY(18px);}
-  to{opacity:1; transform: translateY(0);}
-}
-
-/* ── Sidebar polish ────────────────────────────────────────── */
-section[data-testid="stSidebar"]{
-  background: linear-gradient(180deg, rgba(11,17,36,0.92), rgba(7,11,24,0.96)) !important;
-  border-right: 1px solid var(--glass-brd) !important;
-  backdrop-filter: blur(18px);
-}
-section[data-testid="stSidebar"] .stMarkdown h1,
-section[data-testid="stSidebar"] .stMarkdown h2,
-section[data-testid="stSidebar"] .stMarkdown h3{
-  color: var(--text-0) !important;
-  letter-spacing: -0.01em;
-}
-section[data-testid="stSidebar"] hr{
-  border-color: var(--glass-brd) !important;
-  margin: 1.1rem 0 !important;
-}
-section[data-testid="stSidebar"] .stCaption, section[data-testid="stSidebar"] .stMarkdown p{
-  color: var(--text-2) !important;
-}
-
-/* ── Inputs ────────────────────────────────────────────────── */
-.stTextInput > div > div > input,
-.stTextArea textarea{
-  background: rgba(10, 16, 36, 0.7) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 12px !important;
-  color: var(--text-0) !important;
-  transition: all .25s ease;
-}
-.stTextInput > div > div > input:focus,
-.stTextArea textarea:focus{
-  border-color: var(--glass-brd-hi) !important;
-  box-shadow: 0 0 0 3px rgba(168,85,247,0.18) !important;
-  background: rgba(10, 16, 36, 0.9) !important;
-}
-
-/* ── Buttons: kinetic hover ────────────────────────────────── */
-.stButton > button{
-  background: linear-gradient(135deg, rgba(34,211,238,0.12), rgba(168,85,247,0.16)) !important;
-  color: var(--text-0) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 12px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.01em;
-  transition: all .28s cubic-bezier(.2,.7,.2,1) !important;
-  position: relative;
-  overflow: hidden;
-}
-.stButton > button::after{
-  content:"";
-  position:absolute;
-  top:0; left:-120%;
-  width:60%; height:100%;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.18), transparent);
-  transform: skewX(-20deg);
-  transition: left .6s ease;
-}
-.stButton > button:hover{
-  transform: translateY(-2px);
-  border-color: var(--glass-brd-hi) !important;
-  box-shadow: 0 8px 24px rgba(168,85,247,0.28), 0 0 0 1px rgba(34,211,238,0.25) inset !important;
-  background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(168,85,247,0.30)) !important;
-}
-.stButton > button:hover::after{ left: 130%; }
-.stButton > button:active{ transform: translateY(0); }
-
-/* ── Chat bubbles ──────────────────────────────────────────── */
-.stChatMessage{
-  background: var(--glass-bg) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 16px !important;
-  backdrop-filter: blur(14px);
-  animation: zyro-fadeUp .55s cubic-bezier(.2,.7,.2,1) both;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.30) !important;
-}
-[data-testid="stChatMessageAvatarUser"]{
-  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue)) !important;
-}
-[data-testid="stChatMessageAvatarAssistant"]{
-  background: linear-gradient(135deg, var(--neon-violet), var(--neon-magenta)) !important;
-}
-
-/* ── Chat input ────────────────────────────────────────────── */
-[data-testid="stChatInput"] textarea,
-[data-testid="stChatInputTextArea"]{
-  background: rgba(10, 16, 36, 0.85) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 16px !important;
-  color: var(--text-0) !important;
-}
-[data-testid="stChatInput"] textarea:focus{
-  border-color: var(--glass-brd-hi) !important;
-  box-shadow: 0 0 0 3px rgba(34,211,238,0.18) !important;
-}
-
-/* ── Source badge (glassy pill) ────────────────────────────── */
-.source-badge{
-  display:inline-flex;
-  align-items:center;
-  gap:.35rem;
-  background: linear-gradient(135deg, rgba(34,211,238,0.14), rgba(96,165,250,0.14));
-  border: 1px solid rgba(96,165,250,0.35);
-  border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 0.78rem;
-  color: var(--text-1);
-  margin: 3px;
-  transition: all .25s ease;
-  backdrop-filter: blur(6px);
-}
-.source-badge:hover{
-  border-color: var(--neon-cyan);
-  color: #fff;
-  box-shadow: 0 0 14px rgba(34,211,238,0.45);
-  transform: translateY(-1px);
-}
-
-/* ── Out-of-scope box ──────────────────────────────────────── */
-.oos-box{
-  background: var(--danger-bg);
-  border: 1px solid rgba(252,165,165,0.35);
-  border-left: 4px solid var(--danger);
-  padding: 0.9rem 1.1rem;
-  border-radius: 12px;
-  font-size: 0.92rem;
-  color: #fecaca;
-  backdrop-filter: blur(8px);
-  animation: zyro-fadeUp .45s ease both;
-}
-
-/* ── Expanders (policy sources) ────────────────────────────── */
-details{
-  background: rgba(10,16,36,0.55) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 12px !important;
-  backdrop-filter: blur(10px);
-  transition: all .25s ease;
-}
-details:hover{ border-color: var(--glass-brd-hi) !important; }
-details summary{
-  color: var(--text-1) !important;
-  font-weight: 600;
-}
-
-/* ── Spinner & info alerts ─────────────────────────────────── */
-.stSpinner > div{ border-top-color: var(--neon-cyan) !important; }
-.stAlert{
-  background: var(--glass-bg) !important;
-  border: 1px solid var(--glass-brd) !important;
-  border-radius: 14px !important;
-  backdrop-filter: blur(14px);
-  color: var(--text-1) !important;
-}
-
-/* ── Header tagline pill ───────────────────────────────────── */
-.zyro-tagline{
-  display:inline-block;
-  margin-top: 1rem;
-  padding: 6px 16px;
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-2);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--glass-brd);
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-}
-
-/* ── Footer brand ──────────────────────────────────────────── */
-.zyro-foot{
-  text-align:center;
-  padding: 1.2rem;
-  color: var(--text-2);
-  font-size: .78rem;
-  letter-spacing: .08em;
-  opacity: .8;
-}
+.zyro-aurora{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.zyro-aurora::before,.zyro-aurora::after{content:"";position:absolute;width:60vw;height:60vw;border-radius:50%;filter:blur(120px);opacity:.35;mix-blend-mode:screen}
+.zyro-aurora::before{top:-15%;left:-10%;background:conic-gradient(from 0deg,#22d3ee,#a855f7,#f472b6,#22d3ee);animation:zyro-spin 28s linear infinite}
+.zyro-aurora::after{bottom:-20%;right:-15%;background:conic-gradient(from 180deg,#60a5fa,#22d3ee,#a855f7,#60a5fa);animation:zyro-spin 36s linear infinite reverse}
+@keyframes zyro-spin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.08)}100%{transform:rotate(360deg) scale(1)}}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+*::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--neon-cyan),var(--neon-violet));border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+html{scrollbar-color:var(--neon-violet) transparent}
+.stApp,.stApp p,.stApp span,.stApp li,.stApp label,.stApp div{font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif!important}
+.zyro-glass{position:relative;background:var(--glass-bg);backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--glass-brd);border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
+.zyro-glass::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.06) 50%,transparent 70%);background-size:250% 250%;animation:zyro-shimmer 9s linear infinite;pointer-events:none}
+@keyframes zyro-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.zyro-hero{position:relative;z-index:2;padding:2.4rem 2.2rem;margin-bottom:1.6rem;text-align:center;animation:zyro-fadeUp .9s cubic-bezier(.2,.7,.2,1) both}
+.zyro-hero h1{margin:0;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,#22d3ee,#a855f7,#f472b6,#60a5fa,#22d3ee);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:zyro-gradient 8s ease infinite;display:inline-block}
+.zyro-hero .glyph{font-size:2.2rem;vertical-align:middle;display:inline-block;margin-right:.4rem;animation:zyro-float 4s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(168,85,247,.55))}
+.zyro-hero p{margin:.7rem 0 0;color:var(--text-1);font-size:1rem;opacity:.92;letter-spacing:.01em}
+.zyro-hero .zyro-divider{width:70%;margin:1.1rem auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--neon-cyan),var(--neon-violet),transparent);border-radius:2px;opacity:.7}
+@keyframes zyro-gradient{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes zyro-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes zyro-fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+section[data-testid="stSidebar"]{background:linear-gradient(180deg,rgba(11,17,36,.92),rgba(7,11,24,.96))!important;border-right:1px solid var(--glass-brd)!important;backdrop-filter:blur(18px)}
+section[data-testid="stSidebar"] .stMarkdown h1,section[data-testid="stSidebar"] .stMarkdown h2,section[data-testid="stSidebar"] .stMarkdown h3{color:var(--text-0)!important;letter-spacing:-.01em}
+section[data-testid="stSidebar"] hr{border-color:var(--glass-brd)!important;margin:1.1rem 0!important}
+section[data-testid="stSidebar"] .stCaption,section[data-testid="stSidebar"] .stMarkdown p{color:var(--text-2)!important}
+.stTextInput>div>div>input,.stTextArea textarea{background:rgba(10,16,36,.7)!important;border:1px solid var(--glass-brd)!important;border-radius:12px!important;color:var(--text-0)!important;transition:all .25s ease}
+.stTextInput>div>div>input:focus,.stTextArea textarea:focus{border-color:var(--glass-brd-hi)!important;box-shadow:0 0 0 3px rgba(168,85,247,.18)!important;background:rgba(10,16,36,.9)!important}
+.stButton>button{background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(168,85,247,.16))!important;color:var(--text-0)!important;border:1px solid var(--glass-brd)!important;border-radius:12px!important;font-weight:600!important;letter-spacing:.01em;transition:all .28s cubic-bezier(.2,.7,.2,1)!important;position:relative;overflow:hidden}
+.stButton>button::after{content:"";position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-20deg);transition:left .6s ease}
+.stButton>button:hover{transform:translateY(-2px);border-color:var(--glass-brd-hi)!important;box-shadow:0 8px 24px rgba(168,85,247,.28),0 0 0 1px rgba(34,211,238,.25) inset!important;background:linear-gradient(135deg,rgba(34,211,238,.22),rgba(168,85,247,.30))!important}
+.stButton>button:hover::after{left:130%}
+.stButton>button:active{transform:translateY(0)}
+.stChatMessage{background:var(--glass-bg)!important;border:1px solid var(--glass-brd)!important;border-radius:16px!important;backdrop-filter:blur(14px);animation:zyro-fadeUp .55s cubic-bezier(.2,.7,.2,1) both;box-shadow:0 6px 24px rgba(0,0,0,.30)!important}
+[data-testid="stChatMessageAvatarUser"]{background:linear-gradient(135deg,var(--neon-cyan),var(--neon-blue))!important}
+[data-testid="stChatMessageAvatarAssistant"]{background:linear-gradient(135deg,var(--neon-violet),var(--neon-magenta))!important}
+[data-testid="stChatInput"] textarea,[data-testid="stChatInputTextArea"]{background:rgba(10,16,36,.85)!important;border:1px solid var(--glass-brd)!important;border-radius:16px!important;color:var(--text-0)!important}
+[data-testid="stChatInput"] textarea:focus{border-color:var(--glass-brd-hi)!important;box-shadow:0 0 0 3px rgba(34,211,238,.18)!important}
+.source-badge{display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,rgba(34,211,238,.14),rgba(96,165,250,.14));border:1px solid rgba(96,165,250,.35);border-radius:999px;padding:4px 12px;font-size:.78rem;color:var(--text-1);margin:3px;transition:all .25s ease;backdrop-filter:blur(6px)}
+.source-badge:hover{border-color:var(--neon-cyan);color:#fff;box-shadow:0 0 14px rgba(34,211,238,.45);transform:translateY(-1px)}
+.oos-box{background:var(--danger-bg);border:1px solid rgba(252,165,165,.35);border-left:4px solid var(--danger);padding:.9rem 1.1rem;border-radius:12px;font-size:.92rem;color:#fecaca;backdrop-filter:blur(8px);animation:zyro-fadeUp .45s ease both}
+details{background:rgba(10,16,36,.55)!important;border:1px solid var(--glass-brd)!important;border-radius:12px!important;backdrop-filter:blur(10px);transition:all .25s ease}
+details:hover{border-color:var(--glass-brd-hi)!important}
+details summary{color:var(--text-1)!important;font-weight:600}
+.stSpinner>div{border-top-color:var(--neon-cyan)!important}
+.stAlert{background:var(--glass-bg)!important;border:1px solid var(--glass-brd)!important;border-radius:14px!important;backdrop-filter:blur(14px);color:var(--text-1)!important}
+.zyro-tagline{display:inline-block;margin-top:1rem;padding:6px 16px;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-2);background:rgba(255,255,255,.04);border:1px solid var(--glass-brd);border-radius:999px;backdrop-filter:blur(6px)}
+.zyro-foot{text-align:center;padding:1.2rem;color:var(--text-2);font-size:.78rem;letter-spacing:.08em;opacity:.8}
+.dep-box{background:rgba(252,165,165,.06);border:1px solid rgba(252,165,165,.3);border-left:4px solid #f87171;padding:1.2rem 1.4rem;border-radius:14px;backdrop-filter:blur(8px)}
+.dep-box code{background:rgba(0,0,0,.4);padding:2px 8px;border-radius:6px;font-size:.88rem;color:#fde68a}
 </style>
 </head>
 <body>
 <div class="zyro-aurora"></div>
-
 <script>
-/* ============================================================
-   FRONTEND SECURITY & DETECT-PREVENTION LAYER
-   ============================================================ */
 (function(){
-  document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, true);
-
-  document.addEventListener('keydown', function(e){
-    var k = e.key || e.keyCode;
-    if (e.keyCode === 123){ e.preventDefault(); return false; }
-    if (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'J' || k === 'C' || k === 'i' || k === 'j' || k === 'c')){
-      e.preventDefault(); return false;
-    }
-    if (e.ctrlKey && (k === 'U' || k === 'u')){
-      e.preventDefault(); return false;
-    }
-  }, true);
-
-  var BANNER = [
-    "%c⚠️  ZYRO DYNAMICS — ENTERPRISE SECURITY NOTICE  ⚠️",
-    "color:#fff; background:linear-gradient(90deg,#a855f7,#22d3ee); font-size:18px; font-weight:bold; padding:8px 16px; border-radius:6px;"
-  ];
-  console.log.apply(console, BANNER);
-  console.log("%cThis console is monitored. Unauthorized inspection of network traffic, source code, or application internals is strictly prohibited. All activity is logged and may be reviewed by the Zyro Dynamics Security Operations Center.",
-    "color:#fca5a5; font-size:12px;");
-
-  setInterval(function(){
-    console.clear();
-    console.log.apply(console, BANNER);
-    console.log("%cThis console is monitored. Unauthorized inspection of network traffic, source code, or application internals is strictly prohibited. All activity is logged and may be reviewed by the Zyro Dynamics Security Operations Center.",
-      "color:#fca5a5; font-size:12px;");
-  }, 4000);
+  document.addEventListener('contextmenu',function(e){e.preventDefault();return false},true);
+  document.addEventListener('keydown',function(e){
+    var k=e.key||e.keyCode;
+    if(e.keyCode===123){e.preventDefault();return false}
+    if(e.ctrlKey&&e.shiftKey&&('IJCijc'.indexOf(k)>-1)){e.preventDefault();return false}
+    if(e.ctrlKey&&(k==='U'||k==='u')){e.preventDefault();return false}
+  },true);
+  var B=["%c⚠️  ZYRO DYNAMICS — ENTERPRISE SECURITY NOTICE  ⚠️","color:#fff;background:linear-gradient(90deg,#a855f7,#22d3ee);font-size:18px;font-weight:bold;padding:8px 16px;border-radius:6px;"];
+  console.log.apply(console,B);
+  console.log("%cThis console is monitored.","color:#fca5a5;font-size:12px;");
+  setInterval(function(){console.clear();console.log.apply(console,B);console.log("%cThis console is monitored.","color:#fca5a5;font-size:12px;");},4000);
 })();
 </script>
 </body>
@@ -467,84 +158,252 @@ with st.sidebar:
         "Built for the NIAT × Kaggle RAG Challenge"
     )
 
-# ─── Robust PDF loading with multiple fallback strategies ─────────────────────
-def _load_pdf_documents(pdf_path: str):
-    """Load a single PDF file using the first available strategy.
+# ═══════════════════════════════════════════════════════════════════════════════
+# DEPENDENCY VALIDATOR — checks EVERYTHING upfront, reports ALL missing at once
+# ═══════════════════════════════════════════════════════════════════════════════
+def _check_all_dependencies() -> list[str]:
+    """Return a list of missing pip package names (empty = all good)."""
+    missing = []
 
-    Tries in order:
-      1. langchain_community.document_loaders.PyPDFLoader
-      2. langchain_community.document_loaders.pdf.PyPDFLoader
-      3. pypdf.PdfReader  (raw, wrapped into LangChain Document objects)
-      4. PyMuPDF / fitz   (raw, wrapped into LangChain Document objects)
-    Raises ImportError with clear instructions if nothing works.
-    """
-    # --- Strategy 1: standard langchain import --------------------------------
-    try:
-        from langchain_community.document_loaders import PyPDFLoader
-        loader = PyPDFLoader(pdf_path)
-        return loader.load()
-    except (ModuleNotFoundError, ImportError, Exception):
-        pass
+    # (import_module_name, pip_package_name)
+    hard_deps = [
+        ("langchain_core",        "langchain-core"),
+        ("langchain_groq",        "langchain-groq"),
+        ("sentence_transformers", "sentence-transformers"),
+        ("faiss",                 "faiss-cpu"),
+    ]
+    for mod, pkg in hard_deps:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(pkg)
 
-    # --- Strategy 2: newer langchain sub-module path --------------------------
-    try:
-        from langchain_community.document_loaders.pdf import PyPDFLoader
-        loader = PyPDFLoader(pdf_path)
-        return loader.load()
-    except (ModuleNotFoundError, ImportError, Exception):
-        pass
+    # PDF library — need at least one
+    has_pdf = False
+    for mod in ("pypdf", "fitz"):
+        try:
+            __import__(mod)
+            has_pdf = True
+            break
+        except ImportError:
+            pass
+    if not has_pdf:
+        missing.append("pypdf")
 
-    # --- Strategy 3: pypdf directly ------------------------------------------
+    return missing
+
+
+_MISSING = _check_all_dependencies()
+if _MISSING:
+    st.markdown(
+        '<div class="dep-box">'
+        f'<p style="font-size:1.05rem;font-weight:700;color:#fca5a5;margin:0 0 .6rem;">'
+        f'❌ Missing {len(_MISSING)} required package{"s" if len(_MISSING)>1 else ""}</p>'
+        f'<p style="color:#e2e8f0;margin:0 0 .8rem;">'
+        f'Add the following to your <strong>requirements.txt</strong> and redeploy:</p>'
+        f'<code>{" ".join(_MISSING)}</code>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PURE-PYTHON TEXT SPLITTER (eliminates langchain-text-splitters dependency)
+# ═══════════════════════════════════════════════════════════════════════════════
+class _SimpleDocument:
+    """Minimal document container — avoids importing langchain_core at module level."""
+    __slots__ = ("page_content", "metadata")
+
+    def __init__(self, page_content: str, metadata: dict | None = None):
+        self.page_content = page_content
+        self.metadata = metadata or {}
+
+
+def _split_text_recursive(
+    text: str,
+    chunk_size: int = 800,
+    chunk_overlap: int = 120,
+    separators: list[str] | None = None,
+) -> list[str]:
+    """Recursive character text splitter — pure Python, no dependencies."""
+    if separators is None:
+        separators = ["\n\n", "\n", ". ", " ", ""]
+
+    final_chunks: list[str] = []
+
+    def _split(current_text: str, sep_index: int) -> list[str]:
+        if len(current_text) <= chunk_size:
+            return [current_text] if current_text.strip() else []
+
+        sep = separators[min(sep_index, len(separators) - 1)]
+
+        if sep == "":
+            # Last resort: hard slice
+            return [
+                current_text[i : i + chunk_size]
+                for i in range(0, len(current_text), chunk_size - chunk_overlap)
+                if current_text[i : i + chunk_size].strip()
+            ]
+
+        parts = current_text.split(sep)
+        chunks: list[str] = []
+        current = ""
+
+        for part in parts:
+            candidate = (current + sep + part) if current else part
+            if len(candidate) <= chunk_size:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                # If a single part is bigger than chunk_size, recurse with next separator
+                if len(part) > chunk_size:
+                    chunks.extend(_split(part, sep_index + 1))
+                    current = ""
+                else:
+                    current = part
+
+        if current.strip():
+            chunks.append(current)
+
+        return chunks
+
+    raw = _split(text, 0)
+
+    # Apply overlap by merging adjacent chunks
+    if chunk_overlap > 0 and len(raw) > 1:
+        merged = [raw[0]]
+        for chunk in raw[1:]:
+            overlap_text = merged[-1][-chunk_overlap:] if len(merged[-1]) > chunk_overlap else merged[-1]
+            combined = overlap_text + chunk
+            # If combined fits, use it; otherwise keep separate
+            if len(combined) <= chunk_size * 1.3:
+                merged[-1] = combined
+            else:
+                merged.append(chunk)
+        final_chunks = merged
+    else:
+        final_chunks = raw
+
+    return [c for c in final_chunks if c.strip()]
+
+
+def _split_documents(
+    documents: list[_SimpleDocument],
+    chunk_size: int = 800,
+    chunk_overlap: int = 120,
+) -> list[_SimpleDocument]:
+    """Split a list of documents into chunks."""
+    chunks = []
+    for doc in documents:
+        texts = _split_text_recursive(doc.page_content, chunk_size, chunk_overlap)
+        for t in texts:
+            chunks.append(_SimpleDocument(page_content=t, metadata=dict(doc.metadata)))
+    return chunks
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PDF LOADER — 4-strategy fallback (no langchain-community needed)
+# ═══════════════════════════════════════════════════════════════════════════════
+def _load_pdf(pdf_path: str) -> list[_SimpleDocument]:
+    """Load PDF with cascading fallback strategies."""
+
+    # Strategy 1: pypdf
     try:
         from pypdf import PdfReader
-        from langchain_core.documents import Document
         reader = PdfReader(pdf_path)
         docs = []
         for i, page in enumerate(reader.pages):
             text = page.extract_text() or ""
             if text.strip():
-                docs.append(Document(
-                    page_content=text,
-                    metadata={"source": pdf_path, "page": i},
-                ))
+                docs.append(_SimpleDocument(page_content=text, metadata={"source": pdf_path, "page": i}))
         return docs
-    except (ModuleNotFoundError, ImportError):
+    except Exception:
         pass
 
-    # --- Strategy 4: PyMuPDF (fitz) directly ----------------------------------
+    # Strategy 2: PyMuPDF (fitz)
     try:
-        import fitz  # PyMuPDF
-        from langchain_core.documents import Document
+        import fitz
         doc = fitz.open(pdf_path)
         docs = []
         for i, page in enumerate(doc):
             text = page.get_text()
             if text.strip():
-                docs.append(Document(
-                    page_content=text,
-                    metadata={"source": pdf_path, "page": i},
-                ))
+                docs.append(_SimpleDocument(page_content=text, metadata={"source": pdf_path, "page": i}))
         doc.close()
         return docs
-    except (ModuleNotFoundError, ImportError):
+    except Exception:
         pass
 
-    # --- Nothing worked — tell the user exactly what to install ----------------
     raise ImportError(
-        "No PDF parsing library found. Please install at least one of:\n\n"
+        f"Cannot read `{pdf_path}`. Install a PDF library:\n"
         "  pip install pypdf\n"
-        "  pip install PyMuPDF\n"
-        "  pip install 'langchain-community[pdf]'\n\n"
-        "Then restart the app."
+        "  # OR\n"
+        "  pip install PyMuPDF"
     )
 
 
-# ─── RAG pipeline (cached — builds only once per session) ────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# MINIMAL EMBEDDINGS WRAPPER — uses sentence-transformers directly
+# ═══════════════════════════════════════════════════════════════════════════════
+class _Embedder:
+    """Thin wrapper around sentence-transformers — no langchain-huggingface needed."""
+
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
+        from sentence_transformers import SentenceTransformer
+        self._model = SentenceTransformer(model_name)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        embs = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        return [e.tolist() for e in embs]
+
+    def embed_query(self, text: str) -> list[float]:
+        emb = self._model.encode([text], normalize_embeddings=True, show_progress_bar=False)
+        return emb[0].tolist()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MINIMAL FAISS WRAPPER — uses faiss-cpu directly, no langchain-community
+# ═══════════════════════════════════════════════════════════════════════════════
+import numpy as np
+import faiss
+
+
+class _FaissStore:
+    """Lightweight FAISS index with relevance scores — no langchain-community needed."""
+
+    def __init__(self, documents: list[_SimpleDocument], embeddings: _Embedder):
+        texts = [d.page_content for d in documents]
+        vectors = np.array(embeddings.embed_documents(texts), dtype=np.float32)
+        dim = vectors.shape[1]
+        self._index = faiss.IndexFlatIP(dim)  # Inner product (= cosine on normalized vectors)
+        self._index.add(vectors)
+        self._documents = documents
+
+    def similarity_search_with_relevance_scores(
+        self, query: str, k: int = 5
+    ) -> list[tuple[_SimpleDocument, float]]:
+        q_vec = np.array([self._embedder.embed_query(query)], dtype=np.float32)
+        scores, indices = self._index.search(q_vec, min(k, len(self._documents)))
+        results = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx >= 0:
+                # FAISS InnerProduct on normalized vectors → score in [-1, 1]
+                # Map to [0, 1] range for consistency with langchain's L2-based scoring
+                relevance = float((score + 1) / 2)
+                results.append((self._documents[idx], relevance))
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RAG PIPELINE (cached — builds only once per session)
+# ═══════════════════════════════════════════════════════════════════════════════
 @st.cache_resource(show_spinner="📚 Building HR knowledge base…")
 def build_pipeline(_groq_key: str):
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from langchain_huggingface import HuggingFaceEmbeddings
-    from langchain_community.vectorstores import FAISS
+
+    # Now safe to import langchain packages we validated above
     from langchain_groq import ChatGroq
     from langchain_core.prompts import ChatPromptTemplate
     from langchain_core.output_parsers import StrOutputParser
@@ -560,10 +419,10 @@ def build_pipeline(_groq_key: str):
         st.stop()
 
     # ── Load → chunk → embed → index ─────────────────────────────────────────
-    documents = []
+    documents: list[_SimpleDocument] = []
     for pdf_path in pdf_files:
         try:
-            documents.extend(_load_pdf_documents(pdf_path))
+            documents.extend(_load_pdf(pdf_path))
         except Exception as e:
             st.warning(f"Skipped `{os.path.basename(pdf_path)}`: {e}")
 
@@ -571,19 +430,13 @@ def build_pipeline(_groq_key: str):
         st.error("Failed to extract text from any PDF. See warnings above.")
         st.stop()
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=120,
-        separators=["\n\n", "\n", ". ", " ", ""],
-    )
-    chunks = splitter.split_documents(documents)
+    chunks = _split_documents(documents, chunk_size=800, chunk_overlap=120)
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
-    )
-    vectorstore = FAISS.from_documents(chunks, embeddings)
+    embedder = _Embedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+    # Build FAISS store (pass embedder so it can embed queries later)
+    store = _FaissStore(chunks, embedder)
+    store._embedder = embedder  # attach for query-time use
 
     # ── LLM ──────────────────────────────────────────────────────────────────
     llm = ChatGroq(
@@ -640,7 +493,7 @@ Reply with exactly one word — IN_SCOPE or OUT_OF_SCOPE. No explanation.
         "department or consult an external resource."
     )
 
-    def format_docs(docs):
+    def format_docs(docs: list[_SimpleDocument]) -> str:
         parts = []
         for i, doc in enumerate(docs, 1):
             src  = doc.metadata.get("source", "").split("/")[-1]
@@ -657,8 +510,8 @@ Reply with exactly one word — IN_SCOPE or OUT_OF_SCOPE. No explanation.
             return {"answer": REFUSAL, "sources": [], "in_scope": False}
 
         # Layer 2 — similarity score floor
-        docs_scores = vectorstore.similarity_search_with_relevance_scores(question, k=5)
-        if docs_scores and docs_scores[0][1] < 0.25:
+        docs_scores = store.similarity_search_with_relevance_scores(question, k=5)
+        if docs_scores and docs_scores[0][1] < 0.60:
             return {"answer": REFUSAL, "sources": [], "in_scope": False}
 
         docs    = [d for d, _ in docs_scores]
@@ -674,6 +527,7 @@ Reply with exactly one word — IN_SCOPE or OUT_OF_SCOPE. No explanation.
         return {"answer": answer, "sources": sources, "in_scope": True}
 
     return ask_bot
+
 
 # ─── Apply env vars from sidebar ─────────────────────────────────────────────
 if groq_key:
