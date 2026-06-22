@@ -11,8 +11,6 @@ st.set_page_config(
 )
 
 # ─── Premium UI / UX / Motion / Security Layer ───────────────────────────────
-# All styling, animations and frontend security deterrents are injected inline
-# to comply with the single-file architecture constraint.
 st.markdown("""
 <!DOCTYPE html>
 <html>
@@ -383,25 +381,19 @@ details summary{
    FRONTEND SECURITY & DETECT-PREVENTION LAYER
    ============================================================ */
 (function(){
-  // Disable right-click context menu
   document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, true);
 
-  // Block common DevTools / view-source shortcuts
   document.addEventListener('keydown', function(e){
     var k = e.key || e.keyCode;
-    // F12
     if (e.keyCode === 123){ e.preventDefault(); return false; }
-    // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C
     if (e.ctrlKey && e.shiftKey && (k === 'I' || k === 'J' || k === 'C' || k === 'i' || k === 'j' || k === 'c')){
       e.preventDefault(); return false;
     }
-    // Ctrl+U (view source)
     if (e.ctrlKey && (k === 'U' || k === 'u')){
       e.preventDefault(); return false;
     }
   }, true);
 
-  // Continuous console wipe + enterprise warning banner
   var BANNER = [
     "%c⚠️  ZYRO DYNAMICS — ENTERPRISE SECURITY NOTICE  ⚠️",
     "color:#fff; background:linear-gradient(90deg,#a855f7,#22d3ee); font-size:18px; font-weight:bold; padding:8px 16px; border-radius:6px;"
@@ -410,7 +402,6 @@ details summary{
   console.log("%cThis console is monitored. Unauthorized inspection of network traffic, source code, or application internals is strictly prohibited. All activity is logged and may be reviewed by the Zyro Dynamics Security Operations Center.",
     "color:#fca5a5; font-size:12px;");
 
-  // Periodically re-wipe the console and re-display the warning
   setInterval(function(){
     console.clear();
     console.log.apply(console, BANNER);
@@ -476,10 +467,81 @@ with st.sidebar:
         "Built for the NIAT × Kaggle RAG Challenge"
     )
 
+# ─── Robust PDF loading with multiple fallback strategies ─────────────────────
+def _load_pdf_documents(pdf_path: str):
+    """Load a single PDF file using the first available strategy.
+
+    Tries in order:
+      1. langchain_community.document_loaders.PyPDFLoader
+      2. langchain_community.document_loaders.pdf.PyPDFLoader
+      3. pypdf.PdfReader  (raw, wrapped into LangChain Document objects)
+      4. PyMuPDF / fitz   (raw, wrapped into LangChain Document objects)
+    Raises ImportError with clear instructions if nothing works.
+    """
+    # --- Strategy 1: standard langchain import --------------------------------
+    try:
+        from langchain_community.document_loaders import PyPDFLoader
+        loader = PyPDFLoader(pdf_path)
+        return loader.load()
+    except (ModuleNotFoundError, ImportError, Exception):
+        pass
+
+    # --- Strategy 2: newer langchain sub-module path --------------------------
+    try:
+        from langchain_community.document_loaders.pdf import PyPDFLoader
+        loader = PyPDFLoader(pdf_path)
+        return loader.load()
+    except (ModuleNotFoundError, ImportError, Exception):
+        pass
+
+    # --- Strategy 3: pypdf directly ------------------------------------------
+    try:
+        from pypdf import PdfReader
+        from langchain_core.documents import Document
+        reader = PdfReader(pdf_path)
+        docs = []
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if text.strip():
+                docs.append(Document(
+                    page_content=text,
+                    metadata={"source": pdf_path, "page": i},
+                ))
+        return docs
+    except (ModuleNotFoundError, ImportError):
+        pass
+
+    # --- Strategy 4: PyMuPDF (fitz) directly ----------------------------------
+    try:
+        import fitz  # PyMuPDF
+        from langchain_core.documents import Document
+        doc = fitz.open(pdf_path)
+        docs = []
+        for i, page in enumerate(doc):
+            text = page.get_text()
+            if text.strip():
+                docs.append(Document(
+                    page_content=text,
+                    metadata={"source": pdf_path, "page": i},
+                ))
+        doc.close()
+        return docs
+    except (ModuleNotFoundError, ImportError):
+        pass
+
+    # --- Nothing worked — tell the user exactly what to install ----------------
+    raise ImportError(
+        "No PDF parsing library found. Please install at least one of:\n\n"
+        "  pip install pypdf\n"
+        "  pip install PyMuPDF\n"
+        "  pip install 'langchain-community[pdf]'\n\n"
+        "Then restart the app."
+    )
+
+
 # ─── RAG pipeline (cached — builds only once per session) ────────────────────
 @st.cache_resource(show_spinner="📚 Building HR knowledge base…")
 def build_pipeline(_groq_key: str):
-    from langchain_community.document_loaders import PyPDFLoader
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
@@ -488,21 +550,26 @@ def build_pipeline(_groq_key: str):
     from langchain_core.output_parsers import StrOutputParser
 
     # ── Find corpus ───────────────────────────────────────────────────────────
-    # Kaggle path first, then same directory as app.py
     kaggle_path = "/kaggle/input/competitions/niat-masterclass-rag-challenge/zyro-dynamics-hr-corpus"
     local_path  = os.path.dirname(os.path.abspath(__file__))
     corpus_path = kaggle_path if os.path.exists(kaggle_path) else local_path
 
     pdf_files = sorted(glob.glob(os.path.join(corpus_path, "*.pdf")))
     if not pdf_files:
-        st.error(f"No PDF files found in {corpus_path}. Make sure the dataset is attached.")
+        st.error(f"No PDF files found in `{corpus_path}`. Make sure the HR corpus dataset is attached.")
         st.stop()
 
     # ── Load → chunk → embed → index ─────────────────────────────────────────
     documents = []
     for pdf_path in pdf_files:
-        loader = PyPDFLoader(pdf_path)
-        documents.extend(loader.load())
+        try:
+            documents.extend(_load_pdf_documents(pdf_path))
+        except Exception as e:
+            st.warning(f"Skipped `{os.path.basename(pdf_path)}`: {e}")
+
+    if not documents:
+        st.error("Failed to extract text from any PDF. See warnings above.")
+        st.stop()
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
