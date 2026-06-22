@@ -1,6 +1,6 @@
 """
-Zyro Dynamics — HR Help Desk  (Enterprise RAG Chatbot)
-Built for the NIAT × Kaggle RAG Challenge
+Zyro Dynamics — HR Help Desk  |  Enterprise RAG Chatbot
+NIAT × Kaggle RAG Challenge
 """
 
 import streamlit as st
@@ -9,485 +9,522 @@ import glob
 import time
 import numpy as np
 
-# ─── Page config (MUST be first Streamlit call) ───────────────────────────────
+# ─── Page config  (must be first Streamlit call) ─────────────────────────────
 st.set_page_config(
     page_title="Zyro Dynamics · HR Help Desk",
-    page_icon="🏢",
+    page_icon="https://img.icons8.com/fluency/48/company.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DESIGN SYSTEM & GLOBAL CSS
+#  DESIGN SYSTEM  —  Professional Enterprise HR  (no emoji in UI chrome)
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
+STYLES = """
 <style>
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+/* ── Fonts ─────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&family=DM+Serif+Display:ital@0;1&display=swap');
 
-/* ── Design Tokens ── */
+/* ── Tokens ─────────────────────────────────────────────────────────────────── */
 :root {
-  --bg-deep:    #04071a;
-  --bg-mid:     #080d22;
-  --bg-panel:   #0c1230;
-  --glass:      rgba(14, 22, 55, 0.60);
-  --glass-hi:   rgba(20, 32, 72, 0.80);
-  --border:     rgba(100, 130, 255, 0.15);
-  --border-hi:  rgba(120, 170, 255, 0.40);
-  --cyan:       #22d3ee;
-  --violet:     #818cf8;
-  --indigo:     #6366f1;
-  --rose:       #f472b6;
-  --amber:      #fbbf24;
-  --green:      #34d399;
-  --red-soft:   #fca5a5;
-  --txt-0:      #f0f4ff;
-  --txt-1:      #b8c4e8;
-  --txt-2:      #6b7aab;
-  --radius-sm:  10px;
-  --radius-md:  16px;
-  --radius-lg:  22px;
-  --shadow-lg:  0 20px 60px rgba(0,0,0,0.50);
+  --navy-950: #05091e;
+  --navy-900: #090f28;
+  --navy-800: #0e1535;
+  --navy-700: #131c42;
+  --navy-600: #1a254f;
+  --panel:    rgba(13, 20, 52, 0.72);
+  --panel-hi: rgba(18, 28, 65, 0.88);
+  --stroke:   rgba(110, 140, 255, 0.13);
+  --stroke-hi:rgba(140, 170, 255, 0.38);
+  --accent:   #4f6ef7;
+  --accent-lt:#7b93f9;
+  --teal:     #14b8a6;
+  --gold:     #d4a017;
+  --gold-lt:  #f0c040;
+  --danger:   #e05c6a;
+  --success:  #22c27a;
+  --txt-0:    #edf0ff;
+  --txt-1:    #9aa5cc;
+  --txt-2:    #5a6690;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.45);
 }
 
-/* ── Base reset ── */
-*, *::before, *::after { box-sizing: border-box; }
+/* ── Reset ──────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── App Background ── */
+/* ── Background ─────────────────────────────────────────────────────────────── */
 .stApp, .main,
 section[data-testid="stAppViewContainer"],
 div[data-testid="stAppViewContainer"] {
   background:
-    radial-gradient(ellipse 900px 600px at 5% -5%,  rgba(129,140,248,0.20) 0%, transparent 65%),
-    radial-gradient(ellipse 800px 500px at 95% 5%,  rgba(34,211,238,0.18)  0%, transparent 60%),
-    radial-gradient(ellipse 700px 700px at 50% 110%,rgba(99,102,241,0.15)  0%, transparent 60%),
-    linear-gradient(165deg, var(--bg-deep) 0%, var(--bg-mid) 55%, var(--bg-panel) 100%) !important;
+    radial-gradient(ellipse 1100px 700px at 0% 0%,   rgba(79,110,247,.18) 0%, transparent 60%),
+    radial-gradient(ellipse 900px  600px at 100% 0%,  rgba(20,184,166,.13) 0%, transparent 55%),
+    radial-gradient(ellipse 800px  800px at 50%  110%,rgba(79,110,247,.12) 0%, transparent 55%),
+    linear-gradient(170deg, var(--navy-950) 0%, var(--navy-900) 45%, var(--navy-800) 100%) !important;
   background-attachment: fixed !important;
 }
 
-/* ── Fonts everywhere ── */
+/* ── Global font ────────────────────────────────────────────────────────────── */
 .stApp, .stApp * {
-  font-family: 'Inter', system-ui, sans-serif !important;
-  color: var(--txt-0) !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--violet), var(--cyan));
-  border-radius: 8px;
-}
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 6px; height: 6px; }
+::-webkit-scrollbar-track        { background: transparent; }
+::-webkit-scrollbar-thumb        { background: var(--accent); border-radius: 6px; opacity: .6; }
 
-/* ─────────────────────────────────────────────
-   ANIMATED BACKGROUND PARTICLES (CSS only)
-───────────────────────────────────────────── */
-.zyro-canvas {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
-}
-.zyro-orb {
-  position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.28; mix-blend-mode: screen;
-}
-.orb-1 { width: 600px; height: 600px; top: -150px; left: -100px;
-  background: radial-gradient(circle, #818cf8 0%, transparent 70%);
-  animation: drift1 22s ease-in-out infinite alternate; }
-.orb-2 { width: 500px; height: 500px; top: 10%; right: -120px;
-  background: radial-gradient(circle, #22d3ee 0%, transparent 70%);
-  animation: drift2 28s ease-in-out infinite alternate; }
-.orb-3 { width: 400px; height: 400px; bottom: -100px; left: 30%;
-  background: radial-gradient(circle, #6366f1 0%, transparent 70%);
-  animation: drift3 18s ease-in-out infinite alternate; }
-.orb-4 { width: 300px; height: 300px; top: 40%; left: 10%;
-  background: radial-gradient(circle, #f472b6 0%, transparent 70%);
-  animation: drift4 24s ease-in-out infinite alternate; opacity: 0.18; }
-
-@keyframes drift1 { from { transform: translate(0,0) scale(1); }     to { transform: translate(60px, 80px) scale(1.1); } }
-@keyframes drift2 { from { transform: translate(0,0) scale(1.05); }  to { transform: translate(-70px, 60px) scale(0.95); } }
-@keyframes drift3 { from { transform: translate(0,0) scale(0.95); }  to { transform: translate(50px, -60px) scale(1.08); } }
-@keyframes drift4 { from { transform: translate(0,0); }              to { transform: translate(40px, -40px); } }
-
-/* ── Floating micro-particles ── */
-.particle { position: absolute; border-radius: 50%; opacity: 0; animation: float-particle linear infinite; }
-@keyframes float-particle {
-  0%   { opacity: 0; transform: translateY(100vh) scale(0); }
-  10%  { opacity: 0.6; }
-  90%  { opacity: 0.3; }
-  100% { opacity: 0; transform: translateY(-20px) scale(1.2); }
-}
-
-/* ─────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════════════════════════════
    SIDEBAR
-───────────────────────────────────────────── */
+══════════════════════════════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, rgba(8,12,30,0.96) 0%, rgba(4,7,26,0.98) 100%) !important;
-  border-right: 1px solid var(--border) !important;
-  backdrop-filter: blur(24px) !important;
+  background: linear-gradient(180deg, rgba(9,15,40,.98) 0%, rgba(5,9,30,.99) 100%) !important;
+  border-right: 1px solid var(--stroke) !important;
 }
-section[data-testid="stSidebar"] .stMarkdown h1,
-section[data-testid="stSidebar"] .stMarkdown h2,
-section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--txt-0) !important; }
-section[data-testid="stSidebar"] hr { border-color: var(--border) !important; margin: 1rem 0 !important; }
-section[data-testid="stSidebar"] .stCaption p,
-section[data-testid="stSidebar"] .stMarkdown p { color: var(--txt-2) !important; font-size: 0.82rem !important; }
+section[data-testid="stSidebar"] > div { padding-top: 0 !important; }
 
-/* ─────────────────────────────────────────────
-   HERO HEADER
-───────────────────────────────────────────── */
-.zyro-hero {
+/* Sidebar text */
+section[data-testid="stSidebar"] .stMarkdown p,
+section[data-testid="stSidebar"] .stMarkdown span,
+section[data-testid="stSidebar"] .stCaption p { color: var(--txt-1) !important; font-size: .80rem !important; }
+section[data-testid="stSidebar"] hr { border-color: var(--stroke) !important; margin: .8rem 0 !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMATED BACKGROUND ORBS
+══════════════════════════════════════════════════════════════════════════════ */
+.bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(100px); opacity: .20; mix-blend-mode: screen;
+}
+.orb-1 { width:700px; height:700px; top:-200px; left:-150px;
+  background: radial-gradient(circle, #4f6ef7, transparent 70%);
+  animation: orb-float 26s ease-in-out infinite alternate; }
+.orb-2 { width:550px; height:550px; top:5%; right:-100px;
+  background: radial-gradient(circle, #14b8a6, transparent 70%);
+  animation: orb-float 32s ease-in-out infinite alternate-reverse; }
+.orb-3 { width:450px; height:450px; bottom:-100px; left:25%;
+  background: radial-gradient(circle, #4f6ef7, transparent 70%);
+  animation: orb-float 20s ease-in-out infinite alternate; opacity: .15; }
+@keyframes orb-float {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(50px, 60px) scale(1.08); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HERO BANNER
+══════════════════════════════════════════════════════════════════════════════ */
+.hero-wrap {
   position: relative; z-index: 2;
-  background: linear-gradient(135deg, rgba(14,22,55,0.70) 0%, rgba(20,12,50,0.70) 100%);
-  border: 1px solid var(--border-hi);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(30px) saturate(160%);
-  padding: 2.4rem 2rem 2rem;
-  margin-bottom: 1.4rem;
+  display: flex; align-items: center; gap: 2rem;
+  background: var(--panel);
+  border: 1px solid var(--stroke-hi);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(28px) saturate(150%);
+  padding: 1.8rem 2rem;
+  margin-bottom: 1.2rem;
   overflow: hidden;
-  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.06);
-  animation: hero-in 0.8s cubic-bezier(0.2,0.8,0.2,1) both;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.05);
+  animation: fade-up .7s cubic-bezier(.2,.8,.2,1) both;
 }
-@keyframes hero-in { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-
-/* Shimmer sweep */
-.zyro-hero::before {
+/* Top gradient border */
+.hero-wrap::before {
   content: "";
-  position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-  animation: hero-shimmer 6s ease infinite;
-}
-@keyframes hero-shimmer { 0% { left: -100%; } 100% { left: 200%; } }
-
-/* Top accent bar */
-.zyro-hero::after {
-  content: "";
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(90deg, var(--violet), var(--cyan), var(--rose), var(--indigo));
-  background-size: 300% 100%;
-  animation: bar-flow 5s ease infinite;
-}
-@keyframes bar-flow { 0%,100% { background-position:0% 0%; } 50% { background-position:100% 0%; } }
-
-.hero-inner { display: flex; align-items: center; gap: 1.6rem; flex-wrap: wrap; }
-
-.hero-logo {
-  width: 72px; height: 72px; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--indigo), var(--cyan));
-  border-radius: 20px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 2rem;
-  box-shadow: 0 8px 24px rgba(99,102,241,0.45);
-  animation: logo-pulse 4s ease-in-out infinite;
-  position: relative;
-}
-@keyframes logo-pulse {
-  0%,100% { box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
-  50% { box-shadow: 0 8px 36px rgba(34,211,238,0.55); }
-}
-
-.hero-text { flex: 1; }
-.hero-text h1 {
-  margin: 0 0 0.3rem;
-  font-family: 'Space Grotesk', sans-serif !important;
-  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(90deg, var(--txt-0) 0%, var(--cyan) 50%, var(--violet) 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent !important;
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--teal), var(--accent));
   background-size: 200% 100%;
-  animation: title-shift 8s ease infinite;
+  animation: border-slide 5s linear infinite;
 }
-@keyframes title-shift { 0%,100%{background-position:0% 0%} 50%{background-position:100% 0%} }
+@keyframes border-slide { 0%{background-position:0%} 100%{background-position:200%} }
 
-.hero-text p { margin: 0; color: var(--txt-1) !important; font-size: 0.95rem; line-height: 1.55; }
-
-.hero-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-.hero-badge {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  padding: 4px 12px; border-radius: 999px; font-size: 0.72rem;
-  font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  border: 1px solid; backdrop-filter: blur(8px);
-  transition: all 0.25s ease;
+/* Subtle shimmer sweep */
+.hero-wrap::after {
+  content: "";
+  position: absolute; top: 0; left: -80%; width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.04), transparent);
+  animation: hero-sweep 9s linear infinite;
+  pointer-events: none;
 }
-.badge-cyan   { background: rgba(34,211,238,0.10);  border-color: rgba(34,211,238,0.35);  color: var(--cyan)   !important; }
-.badge-violet { background: rgba(129,140,248,0.10); border-color: rgba(129,140,248,0.35); color: var(--violet) !important; }
-.badge-rose   { background: rgba(244,114,182,0.10); border-color: rgba(244,114,182,0.35); color: var(--rose)   !important; }
-.badge-green  { background: rgba(52,211,153,0.10);  border-color: rgba(52,211,153,0.35);  color: var(--green)  !important; }
+@keyframes hero-sweep { 0%{left:-80%} 100%{left:160%} }
 
-/* Status dot */
-.status-dot {
-  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green); margin-right: 4px;
-  box-shadow: 0 0 6px var(--green);
-  animation: pulse-dot 2s ease-in-out infinite;
+.hero-img {
+  width: 90px; height: 90px; flex-shrink: 0; border-radius: var(--r-md);
+  object-fit: cover;
+  box-shadow: 0 8px 28px rgba(79,110,247,.35);
+  border: 1px solid var(--stroke-hi);
 }
-@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
 
-/* ─────────────────────────────────────────────
+.hero-body { flex: 1; }
+.hero-eyebrow {
+  font-size: .68rem; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent-lt) !important;
+  margin-bottom: .4rem;
+}
+.hero-title {
+  font-family: 'DM Serif Display', Georgia, serif !important;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  font-weight: 400;
+  color: var(--txt-0) !important;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  margin-bottom: .4rem;
+}
+.hero-title em { font-style: italic; color: var(--accent-lt) !important; }
+.hero-sub {
+  font-size: .88rem; color: var(--txt-1) !important; line-height: 1.55;
+  max-width: 560px;
+}
+.hero-pills { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+.pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: 3px 11px; border-radius: 999px;
+  font-size: .70rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  border: 1px solid; backdrop-filter: blur(6px);
+}
+.pill-blue  { background: rgba(79,110,247,.10); border-color: rgba(79,110,247,.35); color: var(--accent-lt) !important; }
+.pill-teal  { background: rgba(20,184,166,.10); border-color: rgba(20,184,166,.35); color: #2dd4bf !important; }
+.pill-gold  { background: rgba(212,160,23,.10);  border-color: rgba(212,160,23,.35);  color: var(--gold-lt) !important; }
+.pill-green { background: rgba(34,194,122,.10); border-color: rgba(34,194,122,.35); color: var(--success) !important; }
+.dot-live {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--success); margin-right: 3px;
+  box-shadow: 0 0 5px var(--success);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ══════════════════════════════════════════════════════════════════════════════
    STATS ROW
-───────────────────────────────────────────── */
+══════════════════════════════════════════════════════════════════════════════ */
 .stats-row {
-  display: flex; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap;
-  animation: hero-in 0.8s 0.15s cubic-bezier(0.2,0.8,0.2,1) both;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem;
+  margin-bottom: 1.2rem;
+  animation: fade-up .7s .1s cubic-bezier(.2,.8,.2,1) both;
 }
 .stat-card {
-  flex: 1; min-width: 120px;
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
   padding: 1rem 1.2rem;
   backdrop-filter: blur(18px);
   text-align: center;
-  transition: all 0.28s ease;
-  position: relative; overflow: hidden;
+  transition: border-color .25s, transform .25s, box-shadow .25s;
+  cursor: default;
 }
-.stat-card::before {
-  content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-  opacity: 0; transition: opacity 0.3s;
+.stat-card:hover {
+  border-color: var(--stroke-hi);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.35);
 }
-.stat-card:hover { border-color: var(--border-hi); transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
-.stat-card:hover::before { opacity: 1; }
-.stat-num { font-size: 1.7rem; font-weight: 800; font-family: 'Space Grotesk', sans-serif !important; }
-.stat-label { font-size: 0.72rem; color: var(--txt-2) !important; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+.stat-num {
+  font-family: 'DM Serif Display', serif !important;
+  font-size: 1.8rem; font-weight: 400; color: var(--txt-0) !important;
+  display: block; line-height: 1;
+}
+.stat-num-accent { color: var(--accent-lt) !important; }
+.stat-num-teal   { color: #2dd4bf !important; }
+.stat-num-gold   { color: var(--gold-lt) !important; }
+.stat-num-green  { color: var(--success) !important; }
+.stat-label {
+  font-size: .68rem; color: var(--txt-2) !important;
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-top: .35rem; display: block;
+}
 
-/* ─────────────────────────────────────────────
-   CHAT MESSAGES
-───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   CHAT MESSAGES  —  TEXT OVERFLOW FIX
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Kill Streamlit's default avatar icon text rendering */
+[data-testid="stChatMessageAvatarUser"] *,
+[data-testid="stChatMessageAvatarAssistant"] * {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
 .stChatMessage {
-  background: var(--glass) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md) !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-md) !important;
   backdrop-filter: blur(18px) !important;
-  box-shadow: 0 6px 28px rgba(0,0,0,0.28) !important;
-  animation: msg-in 0.45s cubic-bezier(0.2,0.8,0.2,1) both;
-  margin-bottom: 0.75rem !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.28) !important;
+  animation: fade-up .4s cubic-bezier(.2,.8,.2,1) both;
+  margin-bottom: .7rem !important;
+  /* OVERFLOW FIX */
+  overflow: hidden !important;
+  min-width: 0 !important;
 }
-@keyframes msg-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 
-[data-testid="stChatMessageAvatarUser"]      { background: linear-gradient(135deg, var(--indigo), var(--cyan)) !important; }
-[data-testid="stChatMessageAvatarAssistant"] { background: linear-gradient(135deg, var(--violet), var(--rose)) !important; }
+/* Ensure message content text wraps and never overflows */
+.stChatMessage p,
+.stChatMessage span,
+.stChatMessage div,
+.stChatMessage li {
+  color: var(--txt-0) !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  white-space: pre-wrap !important;
+  max-width: 100% !important;
+  line-height: 1.65 !important;
+}
+.stChatMessage p { font-size: .9rem !important; }
 
-/* ── Chat input ── */
+/* Message content container */
+[data-testid="stChatMessageContent"] {
+  overflow: hidden !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Avatar styling — replace icon text with initials via pseudo */
+[data-testid="stChatMessageAvatarUser"] {
+  background: linear-gradient(135deg, var(--accent), #7b93f9) !important;
+  border: none !important;
+  flex-shrink: 0 !important;
+}
+[data-testid="stChatMessageAvatarAssistant"] {
+  background: linear-gradient(135deg, #0d2a4a, #1a3a6a) !important;
+  border: 1px solid var(--stroke-hi) !important;
+  flex-shrink: 0 !important;
+}
+
+/* ── Chat input ─────────────────────────────────────────────────────────────── */
 [data-testid="stChatInput"] textarea,
 [data-testid="stChatInputTextArea"] {
-  background: rgba(8,12,30,0.88) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md) !important;
+  background: rgba(9,15,40,.85) !important;
+  border: 1px solid var(--stroke-hi) !important;
+  border-radius: var(--r-md) !important;
   color: var(--txt-0) !important;
-  transition: all 0.25s ease;
+  font-size: .9rem !important;
+  transition: box-shadow .25s, border-color .25s;
 }
 [data-testid="stChatInput"] textarea:focus {
-  border-color: var(--border-hi) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.20) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(79,110,247,.20) !important;
 }
 
-/* ─────────────────────────────────────────────
-   SIDEBAR BUTTONS
-───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR ELEMENTS
+══════════════════════════════════════════════════════════════════════════════ */
 .stButton > button {
-  background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(34,211,238,0.12)) !important;
+  background: rgba(79,110,247,.08) !important;
   color: var(--txt-1) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-sm) !important;
-  font-size: 0.82rem !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-sm) !important;
+  font-size: .80rem !important;
   font-weight: 500 !important;
   text-align: left !important;
-  transition: all 0.25s cubic-bezier(0.2,0.8,0.2,1) !important;
-  position: relative; overflow: hidden;
+  transition: all .22s ease !important;
+  padding: .4rem .7rem !important;
 }
 .stButton > button:hover {
-  background: linear-gradient(135deg, rgba(99,102,241,0.28), rgba(34,211,238,0.20)) !important;
-  border-color: var(--border-hi) !important;
+  background: rgba(79,110,247,.18) !important;
+  border-color: var(--stroke-hi) !important;
   color: var(--txt-0) !important;
-  transform: translateX(4px) !important;
-  box-shadow: 0 4px 20px rgba(99,102,241,0.25) !important;
+  transform: translateX(3px) !important;
 }
 
-/* ─────────────────────────────────────────────
-   INPUTS
-───────────────────────────────────────────── */
-.stTextInput > div > div > input,
-.stTextArea textarea {
-  background: rgba(8,12,30,0.80) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-sm) !important;
+.stTextInput > div > div > input {
+  background: rgba(9,15,40,.80) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-sm) !important;
   color: var(--txt-0) !important;
-  transition: all 0.25s ease;
+  font-size: .85rem !important;
+  transition: border-color .25s, box-shadow .25s;
 }
 .stTextInput > div > div > input:focus {
-  border-color: var(--border-hi) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.18) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(79,110,247,.20) !important;
 }
-.stTextInput label, .stSelectbox label { color: var(--txt-2) !important; font-size: 0.8rem !important; font-weight: 500 !important; letter-spacing: 0.04em; }
+.stTextInput label { color: var(--txt-2) !important; font-size: .75rem !important;
+  letter-spacing: .05em; text-transform: uppercase; font-weight: 600 !important; }
 
-/* ─────────────────────────────────────────────
-   CARDS & COMPONENTS
-───────────────────────────────────────────── */
-.zyro-card {
-  background: var(--glass);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  backdrop-filter: blur(20px);
-  padding: 1.1rem 1.2rem;
-  transition: all 0.28s ease;
-  animation: hero-in 0.7s cubic-bezier(0.2,0.8,0.2,1) both;
-}
-.zyro-card:hover { border-color: var(--border-hi); box-shadow: 0 8px 30px rgba(0,0,0,0.30); }
+/* ══════════════════════════════════════════════════════════════════════════════
+   CUSTOM COMPONENTS
+══════════════════════════════════════════════════════════════════════════════ */
 
-/* Source citations */
-.source-pill {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  background: linear-gradient(135deg, rgba(34,211,238,0.10), rgba(99,102,241,0.10));
-  border: 1px solid rgba(99,102,241,0.30);
-  border-radius: 999px; padding: 4px 12px;
-  font-size: 0.76rem; color: var(--txt-1) !important;
-  margin: 3px; transition: all 0.2s ease;
-  backdrop-filter: blur(6px);
-}
-.source-pill:hover {
-  border-color: var(--cyan); color: #fff !important;
-  box-shadow: 0 0 14px rgba(34,211,238,0.35);
-  transform: translateY(-1px);
+/* Section label */
+.section-label {
+  font-size: .66rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--txt-2) !important;
+  padding: .6rem 0 .3rem;
 }
 
-/* Out-of-scope box */
-.oos-box {
-  background: rgba(252,165,165,0.06);
-  border: 1px solid rgba(252,165,165,0.30);
-  border-left: 4px solid var(--red-soft);
-  padding: 0.9rem 1.1rem;
-  border-radius: var(--radius-sm);
-  color: #fecaca !important;
-  font-size: 0.9rem;
-  backdrop-filter: blur(8px);
-  animation: msg-in 0.4s ease both;
+/* Quick-question buttons in sidebar */
+.qq-btn {
+  display: block; width: 100%;
+  padding: .45rem .7rem;
+  background: rgba(79,110,247,.07);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-sm);
+  color: var(--txt-1) !important;
+  font-size: .78rem; font-weight: 400; text-align: left;
+  margin-bottom: .3rem; cursor: pointer;
+  transition: all .2s ease;
 }
+.qq-btn:hover { background: rgba(79,110,247,.16); border-color: var(--stroke-hi); color: var(--txt-0) !important; }
+
+/* Doc list in sidebar */
+.doc-row {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .35rem .6rem; border-radius: var(--r-sm);
+  margin-bottom: .25rem;
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--stroke);
+  font-size: .75rem; color: var(--txt-1) !important;
+  transition: all .2s;
+}
+.doc-row:hover { background: rgba(79,110,247,.10); border-color: var(--stroke-hi); }
+.doc-icon { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+/* Source citation pills */
+.cite-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  background: rgba(79,110,247,.09);
+  border: 1px solid rgba(79,110,247,.28);
+  border-radius: 6px; padding: 4px 10px;
+  font-size: .74rem; color: var(--txt-1) !important;
+  margin: 3px; transition: all .2s ease;
+}
+.cite-pill:hover {
+  border-color: var(--accent); color: var(--txt-0) !important;
+  box-shadow: 0 0 10px rgba(79,110,247,.25);
+}
+.cite-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+/* Out-of-scope response */
+.oos-card {
+  background: rgba(224,92,106,.06);
+  border: 1px solid rgba(224,92,106,.25);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--r-sm);
+  padding: .85rem 1rem;
+  font-size: .88rem; color: #fca5a5 !important;
+  line-height: 1.6;
+}
+
+/* Welcome empty state */
+.empty-state {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-md);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  backdrop-filter: blur(18px);
+  animation: fade-up .6s .2s both;
+}
+.empty-state-icon {
+  width: 56px; height: 56px; margin: 0 auto .9rem;
+  background: linear-gradient(135deg, var(--accent), var(--teal));
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-state h3 {
+  font-family: 'DM Serif Display', serif !important;
+  font-size: 1.2rem; color: var(--txt-0) !important;
+  margin-bottom: .4rem; font-weight: 400;
+}
+.empty-state p { font-size: .85rem; color: var(--txt-1) !important; line-height: 1.6; max-width: 380px; margin: 0 auto; }
 
 /* Expander */
 details {
-  background: rgba(8,12,30,0.60) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-sm) !important;
-  backdrop-filter: blur(10px);
-  transition: all 0.2s;
+  background: rgba(9,15,40,.60) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-sm) !important;
+  transition: border-color .2s;
 }
-details:hover { border-color: var(--border-hi) !important; }
-details summary { color: var(--txt-1) !important; font-weight: 600; font-size: 0.85rem; }
+details:hover { border-color: var(--stroke-hi) !important; }
+details summary { color: var(--txt-1) !important; font-size: .80rem !important; font-weight: 600; }
 
-/* Info alerts */
+/* Alerts */
 .stAlert {
-  background: var(--glass) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md) !important;
-  backdrop-filter: blur(14px);
+  background: var(--panel) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-md) !important;
   color: var(--txt-1) !important;
 }
 
-/* Section dividers */
-.section-label {
-  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--txt-2) !important;
-  margin: 0.8rem 0 0.4rem; padding-left: 2px;
+/* Progress */
+.stProgress > div > div {
+  background: linear-gradient(90deg, var(--accent), var(--teal)) !important;
+  border-radius: 4px !important;
 }
 
-/* ─────────────────────────────────────────────
-   SPINNER
-───────────────────────────────────────────── */
-.stSpinner > div { border-top-color: var(--cyan) !important; }
-
-/* ─────────────────────────────────────────────
-   THINKING ANIMATION
-───────────────────────────────────────────── */
-.thinking-dots { display: inline-flex; gap: 4px; align-items: center; }
-.thinking-dots span {
-  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--cyan); animation: dot-bounce 1.2s ease-in-out infinite;
+/* Footer */
+.hr-footer {
+  text-align: center; padding: 1.2rem;
+  color: var(--txt-2) !important; font-size: .72rem;
+  letter-spacing: .05em; border-top: 1px solid var(--stroke); margin-top: 1.5rem;
 }
-.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes dot-bounce { 0%,80%,100%{transform:scale(0.7);opacity:0.5} 40%{transform:scale(1.2);opacity:1} }
+.hr-footer a { color: var(--accent-lt) !important; text-decoration: none; }
 
-/* ─────────────────────────────────────────────
-   FOOTER
-───────────────────────────────────────────── */
-.zyro-footer {
-  text-align: center; padding: 1.5rem 1rem 1rem;
-  color: var(--txt-2) !important; font-size: 0.75rem;
-  letter-spacing: 0.05em; border-top: 1px solid var(--border);
-  margin-top: 2rem;
+/* Animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.zyro-footer a { color: var(--cyan) !important; text-decoration: none; }
-.zyro-footer a:hover { color: var(--violet) !important; }
 
-/* Sidebar doc list */
-.doc-item {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.4rem 0.6rem; border-radius: 8px;
-  background: rgba(99,102,241,0.06);
-  border: 1px solid rgba(99,102,241,0.12);
-  margin-bottom: 0.3rem; font-size: 0.78rem;
-  color: var(--txt-1) !important;
-  transition: all 0.2s;
+/* Divider */
+.stDivider { border-color: var(--stroke) !important; }
+
+/* Status widget */
+.stStatus { background: var(--panel) !important; border: 1px solid var(--stroke) !important;
+  border-radius: var(--r-md) !important; }
+
+/* Info message */
+.rag-info-bar {
+  background: rgba(79,110,247,.08);
+  border: 1px solid rgba(79,110,247,.22);
+  border-radius: var(--r-sm);
+  padding: .55rem .85rem;
+  font-size: .78rem; color: var(--txt-1) !important;
+  margin-bottom: .7rem;
+  display: flex; align-items: center; gap: .5rem;
 }
-.doc-item:hover { background: rgba(99,102,241,0.12); border-color: var(--border-hi); }
-
-/* Welcome card */
-.welcome-card {
-  background: linear-gradient(135deg, rgba(99,102,241,0.10) 0%, rgba(34,211,238,0.08) 100%);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.4rem 1.6rem;
-  margin: 1rem 0;
-  backdrop-filter: blur(16px);
-}
-.welcome-card h3 { font-family: 'Space Grotesk', sans-serif !important; margin: 0 0 0.6rem; font-size: 1.05rem; }
-.welcome-card p  { color: var(--txt-1) !important; font-size: 0.88rem; line-height: 1.55; margin: 0; }
-
-/* Progress bar for build */
-.stProgress > div > div { background: linear-gradient(90deg, var(--indigo), var(--cyan)) !important; border-radius: 4px !important; }
+.rag-info-bar b { color: var(--accent-lt) !important; }
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# ── Animated background orbs + particles ──────────────────────────────────────
+st.markdown(STYLES, unsafe_allow_html=True)
+
+# ── Animated background ───────────────────────────────────────────────────────
 st.markdown("""
-<div class="zyro-canvas">
-  <div class="zyro-orb orb-1"></div>
-  <div class="zyro-orb orb-2"></div>
-  <div class="zyro-orb orb-3"></div>
-  <div class="zyro-orb orb-4"></div>
-  <!-- Floating micro-particles -->
-  <div class="particle" style="width:3px;height:3px;background:#818cf8;left:15%;animation-duration:18s;animation-delay:0s;"></div>
-  <div class="particle" style="width:2px;height:2px;background:#22d3ee;left:35%;animation-duration:22s;animation-delay:4s;"></div>
-  <div class="particle" style="width:4px;height:4px;background:#f472b6;left:55%;animation-duration:15s;animation-delay:8s;"></div>
-  <div class="particle" style="width:2px;height:2px;background:#6366f1;left:75%;animation-duration:20s;animation-delay:2s;"></div>
-  <div class="particle" style="width:3px;height:3px;background:#34d399;left:88%;animation-duration:17s;animation-delay:6s;"></div>
-  <div class="particle" style="width:2px;height:2px;background:#818cf8;left:25%;animation-duration:24s;animation-delay:10s;"></div>
-  <div class="particle" style="width:3px;height:3px;background:#22d3ee;left:65%;animation-duration:19s;animation-delay:3s;"></div>
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
 </div>
 """, unsafe_allow_html=True)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-# SIDEBAR
+#  SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    # Logo area
+
+    # Brand
     st.markdown("""
-    <div style="text-align:center;padding:1rem 0 0.5rem;">
-      <div style="font-size:2.5rem;margin-bottom:0.4rem;filter:drop-shadow(0 0 16px rgba(99,102,241,0.6));">🏢</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;
-                  background:linear-gradient(90deg,#818cf8,#22d3ee);
-                  -webkit-background-clip:text;background-clip:text;color:transparent;">
+    <div style="padding:1.4rem 0 .6rem;text-align:center;">
+      <img src="https://img.icons8.com/fluency/80/company.png"
+           style="width:52px;height:52px;border-radius:12px;
+                  box-shadow:0 6px 20px rgba(79,110,247,.35);margin-bottom:.6rem;display:block;margin-left:auto;margin-right:auto;">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:#edf0ff;letter-spacing:-.01em;">
         Zyro Dynamics
       </div>
-      <div style="font-size:0.7rem;color:#6b7aab;letter-spacing:0.1em;text-transform:uppercase;margin-top:2px;">
-        HR Help Desk · AI
+      <div style="font-size:.66rem;color:#5a6690;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;">
+        HR Help Desk &middot; AI
       </div>
     </div>
     """, unsafe_allow_html=True)
 
     st.divider()
 
-    # API Keys
-    st.markdown('<div class="section-label">🔑 API Configuration</div>', unsafe_allow_html=True)
+    # API keys
+    st.markdown('<div class="section-label">API Configuration</div>', unsafe_allow_html=True)
     groq_key = st.text_input(
         "Groq API Key",
         type="password",
@@ -500,97 +537,80 @@ with st.sidebar:
         type="password",
         value=os.environ.get("LANGCHAIN_API_KEY", ""),
         placeholder="ls__...",
-        help="For tracing at smith.langchain.com",
+        help="Enables LangSmith tracing",
     )
 
     st.divider()
 
     # Quick questions
-    st.markdown('<div class="section-label">💬 Quick Questions</div>', unsafe_allow_html=True)
-    sample_qs = [
+    st.markdown('<div class="section-label">Quick Questions</div>', unsafe_allow_html=True)
+    SAMPLE_QS = [
         "How many earned leave days per year?",
         "When is salary credited each month?",
         "What is the WFH policy for L3 employees?",
-        "What health insurance coverage do I get?",
+        "What health insurance coverage do employees get?",
         "What happens with a performance rating of 1?",
         "How long is the PIP duration?",
         "When is the Annual Performance Review?",
         "What is the payroll cut-off date?",
         "What is the maternity leave entitlement?",
         "How do I claim travel reimbursements?",
+        "What is the notice period for resignation?",
+        "How does the performance bonus work?",
     ]
-    for sq in sample_qs:
-        if st.button(f"→ {sq}", use_container_width=True, key=f"sq_{hash(sq)}"):
-            st.session_state.pending_question = sq
+    for q in SAMPLE_QS:
+        if st.button(q, use_container_width=True, key=f"sq_{hash(q)}"):
+            st.session_state.pending_question = q
 
     st.divider()
 
-    # Document list
-    st.markdown('<div class="section-label">📚 Knowledge Base</div>', unsafe_allow_html=True)
-    doc_names = [
-        ("🏢", "Company Profile"),
-        ("📖", "Employee Handbook"),
-        ("🌴", "Leave Policy"),
-        ("🏠", "Work From Home"),
-        ("⚖️", "Code of Conduct"),
-        ("📊", "Performance Review"),
-        ("💰", "Compensation & Benefits"),
-        ("🔒", "IT & Data Security"),
-        ("🛡️", "POSH Policy"),
-        ("🚪", "Onboarding & Separation"),
-        ("✈️", "Travel & Expense"),
+    # Knowledge base docs
+    st.markdown('<div class="section-label">Knowledge Base</div>', unsafe_allow_html=True)
+    DOCS = [
+        "Company Profile",
+        "Employee Handbook",
+        "Leave Policy",
+        "Work From Home Policy",
+        "Code of Conduct",
+        "Performance Review Policy",
+        "Compensation & Benefits",
+        "IT & Data Security",
+        "Prevention of Sexual Harassment",
+        "Onboarding & Separation",
+        "Travel & Expense Policy",
     ]
-    for icon, name in doc_names:
-        st.markdown(f'<div class="doc-item"><span>{icon}</span><span>{name}</span></div>', unsafe_allow_html=True)
+    for d in DOCS:
+        st.markdown(f'<div class="doc-row"><span class="doc-icon"></span>{d}</div>',
+                    unsafe_allow_html=True)
 
     st.divider()
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if st.button("🗑️ Clear", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.query_count = 0
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Clear Chat", use_container_width=True):
+            st.session_state.messages     = []
+            st.session_state.query_count  = 0
             st.rerun()
-    with col_b:
-        if st.button("↺ Reset", use_container_width=True):
-            for k in ["messages", "rag_pipeline", "query_count", "pending_question"]:
+    with c2:
+        if st.button("Reset App", use_container_width=True):
+            for k in ["messages", "rag_pipeline", "query_count", "pending_question",
+                      "n_docs", "n_chunks"]:
                 st.session_state.pop(k, None)
             st.rerun()
 
     st.divider()
     st.markdown("""
-    <div style="font-size:0.72rem;color:#6b7aab;line-height:1.7;text-align:center;">
-      <strong style="color:#8b9bc7;">Zyro Dynamics HR Help Desk</strong><br>
-      Powered by <span style="color:#818cf8;">LangChain</span> ·
-      <span style="color:#22d3ee;">FAISS</span> ·
-      <span style="color:#f472b6;">Groq</span><br>
-      NIAT × Kaggle RAG Challenge
+    <div style="font-size:.70rem;color:#5a6690;line-height:1.8;text-align:center;">
+      Powered by <span style="color:#9aa5cc;">LangChain</span> &middot;
+      <span style="color:#9aa5cc;">FAISS</span> &middot;
+      <span style="color:#9aa5cc;">Groq LLaMA&nbsp;3.3&nbsp;70B</span><br>
+      NIAT &times; Kaggle RAG Challenge
     </div>
     """, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# HERO HEADER
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<div class="zyro-hero">
-  <div class="hero-inner">
-    <div class="hero-logo">🏢</div>
-    <div class="hero-text">
-      <h1>Zyro Dynamics HR Help Desk</h1>
-      <p>Your intelligent, always-available HR assistant — powered by RAG over 11 internal policy documents.</p>
-      <div class="hero-badges">
-        <span class="hero-badge badge-green"><span class="status-dot"></span>System Online</span>
-        <span class="hero-badge badge-cyan">⚡ Groq LLM</span>
-        <span class="hero-badge badge-violet">🔍 FAISS Vector Search</span>
-        <span class="hero-badge badge-rose">📄 11 Policy Docs</span>
-      </div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# DEPENDENCY CHECK
+#  DEPENDENCY CHECK
 # ══════════════════════════════════════════════════════════════════════════════
 def _check_deps() -> list[str]:
     missing = []
@@ -604,8 +624,6 @@ def _check_deps() -> list[str]:
             __import__(mod)
         except ImportError:
             missing.append(pkg)
-    has_pdf = any(__import__(m) or True for m in ["pypdf", "fitz"]
-                  if not (lambda m=m: __import__(m))() or True)
     try:
         __import__("pypdf")
     except ImportError:
@@ -617,125 +635,149 @@ def _check_deps() -> list[str]:
 
 _MISSING = _check_deps()
 if _MISSING:
-    st.error(
-        f"**Missing packages:** `{' '.join(_MISSING)}`\n\n"
-        "Add these to `requirements.txt` and redeploy on Streamlit Cloud."
-    )
+    st.error(f"**Missing packages:** `{' '.join(_MISSING)}` — add to `requirements.txt` and redeploy.")
     st.stop()
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-# PURE-PYTHON DOCUMENT / TEXT SPLITTER
+#  PURE-PYTHON DOCUMENT TYPES & SPLITTER
 # ══════════════════════════════════════════════════════════════════════════════
 class _Doc:
     __slots__ = ("page_content", "metadata")
     def __init__(self, page_content: str, metadata: dict | None = None):
         self.page_content = page_content
-        self.metadata = metadata or {}
+        self.metadata     = metadata or {}
 
 
-def _split_text(text: str, chunk_size: int = 800, chunk_overlap: int = 120) -> list[str]:
-    separators = ["\n\n", "\n", ". ", " ", ""]
+def _split_text(text: str, chunk_size: int = 600, chunk_overlap: int = 100) -> list[str]:
+    """
+    Recursive splitter.  Smaller chunk_size (600) gives more, richer chunks
+    from compact PDFs — fixes the '39 chunks' problem.
+    """
+    seps = ["\n\n", "\n", ". ", " ", ""]
 
-    def _split(txt: str, sep_idx: int) -> list[str]:
+    def _rec(txt: str, si: int) -> list[str]:
         if len(txt) <= chunk_size:
             return [txt] if txt.strip() else []
-        sep = separators[min(sep_idx, len(separators) - 1)]
-        if sep == "":
-            return [txt[i:i+chunk_size] for i in range(0, len(txt), max(1, chunk_size - chunk_overlap))
+        sep = seps[min(si, len(seps) - 1)]
+        if not sep:
+            return [txt[i:i+chunk_size]
+                    for i in range(0, len(txt), max(1, chunk_size - chunk_overlap))
                     if txt[i:i+chunk_size].strip()]
-        parts = txt.split(sep)
-        chunks, current = [], ""
+        parts, chunks, cur = txt.split(sep), [], ""
         for part in parts:
-            candidate = (current + sep + part) if current else part
-            if len(candidate) <= chunk_size:
-                current = candidate
+            cand = (cur + sep + part) if cur else part
+            if len(cand) <= chunk_size:
+                cur = cand
             else:
-                if current: chunks.append(current)
-                if len(part) > chunk_size: chunks.extend(_split(part, sep_idx + 1)); current = ""
-                else: current = part
-        if current.strip(): chunks.append(current)
+                if cur: chunks.append(cur)
+                if len(part) > chunk_size:
+                    chunks.extend(_rec(part, si + 1)); cur = ""
+                else:
+                    cur = part
+        if cur.strip(): chunks.append(cur)
         return chunks
 
-    raw = _split(text, 0)
+    raw = _rec(text, 0)
     if chunk_overlap <= 0 or len(raw) <= 1:
         return [c for c in raw if c.strip()]
     merged = [raw[0]]
     for chunk in raw[1:]:
         tail = merged[-1][-chunk_overlap:]
-        combined = tail + chunk
-        if len(combined) <= chunk_size * 1.35: merged[-1] = combined
-        else: merged.append(chunk)
+        if len(tail + chunk) <= int(chunk_size * 1.3):
+            merged[-1] = tail + chunk
+        else:
+            merged.append(chunk)
     return [c for c in merged if c.strip()]
 
 
-def _split_docs(docs: list[_Doc], chunk_size=800, chunk_overlap=120) -> list[_Doc]:
+def _split_docs(docs: list[_Doc], chunk_size=600, chunk_overlap=100) -> list[_Doc]:
     out = []
     for doc in docs:
         for t in _split_text(doc.page_content, chunk_size, chunk_overlap):
             out.append(_Doc(page_content=t, metadata=dict(doc.metadata)))
     return out
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-# PDF LOADER  (pypdf → PyMuPDF fallback)
+#  PDF LOADER
 # ══════════════════════════════════════════════════════════════════════════════
 def _load_pdf(path: str) -> list[_Doc]:
+    # Strategy 1 — pypdf
     try:
         from pypdf import PdfReader
         reader = PdfReader(path)
-        return [_Doc(page_content=p.extract_text() or "", metadata={"source": path, "page": i})
-                for i, p in enumerate(reader.pages) if (p.extract_text() or "").strip()]
+        pages  = []
+        for i, page in enumerate(reader.pages):
+            txt = (page.extract_text() or "").strip()
+            if txt:
+                pages.append(_Doc(page_content=txt, metadata={"source": path, "page": i}))
+        if pages:
+            return pages
     except Exception:
         pass
+    # Strategy 2 — PyMuPDF
     try:
         import fitz
-        doc = fitz.open(path)
-        pages = [_Doc(page_content=page.get_text(), metadata={"source": path, "page": i})
-                 for i, page in enumerate(doc) if page.get_text().strip()]
+        doc   = fitz.open(path)
+        pages = []
+        for i, page in enumerate(doc):
+            txt = page.get_text().strip()
+            if txt:
+                pages.append(_Doc(page_content=txt, metadata={"source": path, "page": i}))
         doc.close()
         return pages
     except Exception:
         pass
     raise RuntimeError(f"Cannot read {path}. Install pypdf or PyMuPDF.")
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-# EMBEDDER  (sentence-transformers, no langchain wrapper needed)
+#  EMBEDDER  (sentence-transformers direct)
 # ══════════════════════════════════════════════════════════════════════════════
 class _Embedder:
-    def __init__(self, model="sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model: str = "sentence-transformers/all-MiniLM-L6-v2"):
         from sentence_transformers import SentenceTransformer
         self._m = SentenceTransformer(model)
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return self._m.encode(texts, normalize_embeddings=True, show_progress_bar=False).tolist()
+        return self._m.encode(texts, normalize_embeddings=True,
+                              show_progress_bar=False, batch_size=64).tolist()
 
     def embed_query(self, text: str) -> list[float]:
-        return self._m.encode([text], normalize_embeddings=True, show_progress_bar=False)[0].tolist()
+        return self._m.encode([text], normalize_embeddings=True,
+                              show_progress_bar=False)[0].tolist()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FAISS VECTOR STORE  (self-contained — no langchain-community)
+#  FAISS VECTOR STORE  (self-contained — no langchain-community)
 # ══════════════════════════════════════════════════════════════════════════════
 import faiss
 
 class _VectorStore:
     def __init__(self, docs: list[_Doc], embedder: _Embedder):
-        # ← FIX: store embedder as instance attribute FIRST
-        self._embedder = embedder
-        self._docs = docs
-        vecs = np.array(embedder.embed_documents([d.page_content for d in docs]), dtype=np.float32)
-        self._index = faiss.IndexFlatIP(vecs.shape[1])   # cosine on L2-normalised vecs
+        self._embedder = embedder          # ← CRITICAL BUG FIX: store first
+        self._docs     = docs
+        vecs = np.array(
+            embedder.embed_documents([d.page_content for d in docs]),
+            dtype=np.float32
+        )
+        dim          = vecs.shape[1]
+        self._index  = faiss.IndexFlatIP(dim)   # inner-product = cosine on L2-norm vecs
         self._index.add(vecs)
 
-    def search(self, query: str, k: int = 5) -> list[tuple[_Doc, float]]:
-        q = np.array([self._embedder.embed_query(query)], dtype=np.float32)
+    def search(self, query: str, k: int = 6) -> list[tuple[_Doc, float]]:
+        q      = np.array([self._embedder.embed_query(query)], dtype=np.float32)
         scores, idxs = self._index.search(q, min(k, len(self._docs)))
-        results = []
+        result = []
         for s, i in zip(scores[0], idxs[0]):
             if i >= 0:
-                results.append((self._docs[i], float((s + 1) / 2)))   # map [-1,1] → [0,1]
-        return sorted(results, key=lambda x: x[1], reverse=True)
+                result.append((self._docs[i], float((s + 1) / 2)))   # [-1,1] → [0,1]
+        return sorted(result, key=lambda x: x[1], reverse=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# RAG PIPELINE  (cached — builds once per session)
+#  RAG PIPELINE  (cached — builds once per session)
 # ══════════════════════════════════════════════════════════════════════════════
 @st.cache_resource(show_spinner=False)
 def build_pipeline(_groq_key: str):
@@ -743,109 +785,133 @@ def build_pipeline(_groq_key: str):
     from langchain_core.prompts import ChatPromptTemplate
     from langchain_core.output_parsers import StrOutputParser
 
-    # ── Locate PDFs ───────────────────────────────────────────────────────────
+    # ── Locate PDFs ──────────────────────────────────────────────────────────
     base = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
+    search_dirs = [
         "/kaggle/input/competitions/niat-masterclass-rag-challenge/zyro-dynamics-hr-corpus",
         os.path.join(base, "zyro-dynamics-hr-corpus"),
         base,
     ]
     pdf_files = []
-    for c in candidates:
-        found = sorted(glob.glob(os.path.join(c, "*.pdf")))
+    for d in search_dirs:
+        found = sorted(glob.glob(os.path.join(d, "*.pdf")))
         if found:
             pdf_files = found
             break
 
     if not pdf_files:
-        st.error("❌ No PDF files found. Make sure the `zyro-dynamics-hr-corpus/` folder is in your repo.")
+        st.error("No PDF files found. Ensure `zyro-dynamics-hr-corpus/` is in your repository.")
         st.stop()
 
-    # ── Load → chunk ──────────────────────────────────────────────────────────
-    all_docs: list[_Doc] = []
+    # ── Load pages ───────────────────────────────────────────────────────────
+    raw_docs: list[_Doc] = []
     for p in pdf_files:
         try:
-            all_docs.extend(_load_pdf(p))
+            raw_docs.extend(_load_pdf(p))
         except Exception as e:
-            st.warning(f"Skipped `{os.path.basename(p)}`: {e}")
+            st.warning(f"Skipped {os.path.basename(p)}: {e}")
 
-    if not all_docs:
-        st.error("❌ Could not extract text from any PDF.")
+    if not raw_docs:
+        st.error("Could not extract text from any PDF.")
         st.stop()
 
-    chunks = _split_docs(all_docs, chunk_size=800, chunk_overlap=120)
+    # ── Chunk (smaller = more chunks = better recall) ────────────────────────
+    chunks = _split_docs(raw_docs, chunk_size=600, chunk_overlap=100)
 
-    # ── Embed → index ─────────────────────────────────────────────────────────
+    # ── Embed & index ────────────────────────────────────────────────────────
     embedder = _Embedder()
-    store = _VectorStore(chunks, embedder)
+    store    = _VectorStore(chunks, embedder)
 
-    # ── LLM ───────────────────────────────────────────────────────────────────
-    llm    = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.1, max_tokens=600, api_key=_groq_key)
+    # ── LLM ──────────────────────────────────────────────────────────────────
+    llm    = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        temperature=0.05,
+        max_tokens=700,
+        api_key=_groq_key,
+    )
     parser = StrOutputParser()
 
     # ── Prompts ───────────────────────────────────────────────────────────────
     RAG_PROMPT = ChatPromptTemplate.from_template("""
-You are an expert HR Help Desk assistant for Zyro Dynamics (also known as Acrux Dynamics).
-Answer the employee's question using ONLY the HR policy context provided below.
-Be precise: quote exact numbers, percentages, dates, and limits from the context.
-Never add information not found in the context.
-If the context is insufficient, say exactly:
-"I don't have enough information in the HR policy documents to answer this question."
+You are a precise, professional HR Help Desk assistant for Zyro Dynamics (also called Acrux Dynamics).
+
+STRICT RULES:
+1. Answer ONLY using the HR Policy Context below.
+2. Be specific — include exact numbers, dates, durations, percentages, and conditions.
+3. Structure longer answers with clear, concise paragraphs or bullet points.
+4. Never fabricate information not found in the context.
+5. If context is insufficient, say: "The HR policy documents do not contain sufficient detail to answer this question. Please contact HR directly."
+6. Write in a professional, neutral HR tone. No greetings, no filler phrases.
 
 HR Policy Context:
 {context}
 
-Employee Question: {question}
+Employee Question:
+{question}
 
-Provide a clear, well-structured answer:""")
+Answer:""")
 
     OOS_PROMPT = ChatPromptTemplate.from_template("""
 You are a strict binary classifier for an HR chatbot.
-Decide if the question is answerable from Zyro Dynamics internal HR policy documents.
+Determine if the following question can be answered from Zyro Dynamics internal HR policy documents.
 
-In-scope topics: leave policies, work from home, code of conduct, performance reviews (APR/PIP),
-compensation, salary, payroll, health insurance, IT & data security, POSH, onboarding,
-probation, separation, travel & expense reimbursement, company overview & culture, grade structure.
+In-scope: leave policies, WFH/remote, code of conduct, performance reviews (APR, PIP, ratings),
+compensation, salary, payroll, bonuses, health insurance, benefits, IT/data security, POSH/ICC,
+onboarding, probation, separation, full & final settlement, travel & expense reimbursement,
+company overview, culture, grade structure, office policies.
 
 Question: {question}
 
-Reply with EXACTLY one word — either IN_SCOPE or OUT_OF_SCOPE. No other text.""")
+Reply with EXACTLY one word — IN_SCOPE or OUT_OF_SCOPE. Nothing else.""")
 
     REFUSAL = (
-        "I'm sorry — I can only answer HR-related questions based on Zyro Dynamics "
-        "internal policy documents. Your question is outside my scope. Please contact "
-        "the relevant department or consult an external resource."
+        "This question falls outside the scope of Zyro Dynamics HR policy documents. "
+        "I can only assist with HR-related queries such as leave, compensation, performance, "
+        "WFH policy, benefits, IT security, POSH, or onboarding. "
+        "For other matters, please contact the appropriate department."
     )
 
-    def _ctx(docs: list[_Doc]) -> str:
+    def _format_context(docs: list[_Doc]) -> str:
         parts = []
         for i, d in enumerate(docs, 1):
-            src  = os.path.basename(d.metadata.get("source", "Unknown"))
-            page = d.metadata.get("page", "?")
-            parts.append(f"[Source {i} · {src} · page {page}]\n{d.page_content}")
-        return "\n\n---\n\n".join(parts)
+            fname = os.path.basename(d.metadata.get("source", "Unknown"))
+            page  = d.metadata.get("page", "?")
+            parts.append(f"[Document {i} — {fname}, page {page}]\n{d.page_content}")
+        return "\n\n" + "─" * 60 + "\n\n".join(parts)
 
     def ask(question: str) -> dict:
-        # 1 — LLM scope gate
-        verdict = parser.invoke(llm.invoke(OOS_PROMPT.invoke({"question": question}))).strip().upper()
+        # Gate 1 — LLM scope classifier
+        verdict = parser.invoke(
+            llm.invoke(OOS_PROMPT.invoke({"question": question}))
+        ).strip().upper()
         if "OUT_OF_SCOPE" in verdict:
-            return {"answer": REFUSAL, "sources": [], "in_scope": False}
+            return {"answer": REFUSAL, "sources": [], "in_scope": False, "score": 0.0}
 
-        # 2 — Semantic relevance floor
-        hits = store.search(question, k=5)
-        if not hits or hits[0][1] < 0.58:
-            return {"answer": REFUSAL, "sources": [], "in_scope": False}
+        # Gate 2 — semantic relevance floor (lower = more lenient = better recall)
+        hits = store.search(question, k=6)
+        if not hits or hits[0][1] < 0.52:
+            return {"answer": REFUSAL, "sources": [], "in_scope": False, "score": 0.0}
 
-        docs    = [d for d, _ in hits]
-        answer  = parser.invoke(llm.invoke(RAG_PROMPT.invoke({"context": _ctx(docs), "question": question})))
-        sources = [{"file": os.path.basename(d.metadata.get("source", "")),
-                    "page": d.metadata.get("page", "?")} for d in docs]
-        return {"answer": answer, "sources": sources, "in_scope": True}
+        docs   = [d for d, _ in hits]
+        top_sc = hits[0][1]
+        answer = parser.invoke(
+            llm.invoke(RAG_PROMPT.invoke({
+                "context":  _format_context(docs),
+                "question": question,
+            }))
+        )
+        sources = [
+            {"file": os.path.basename(d.metadata.get("source", "")),
+             "page": d.metadata.get("page", "?")}
+            for d in docs
+        ]
+        return {"answer": answer, "sources": sources, "in_scope": True, "score": round(top_sc, 3)}
 
     return ask, len(pdf_files), len(chunks)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
-# APPLY ENV VARS FROM SIDEBAR INPUT
+#  APPLY ENV VARS
 # ══════════════════════════════════════════════════════════════════════════════
 if groq_key:
     os.environ["GROQ_API_KEY"] = groq_key
@@ -854,157 +920,247 @@ if langchain_key:
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ["LANGCHAIN_PROJECT"]    = "zyro-rag-challenge"
 
-# ── Guard: need API key ───────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  API KEY GUARD
+# ══════════════════════════════════════════════════════════════════════════════
 if not groq_key:
+    # Hero still visible but with welcome message
     st.markdown("""
-    <div class="welcome-card">
-      <h3>👋 Welcome to the Zyro Dynamics HR Help Desk</h3>
-      <p>To get started, enter your <strong>Groq API Key</strong> in the sidebar on the left.<br>
-      Get a free key at <a href="https://console.groq.com" target="_blank" style="color:#22d3ee;">console.groq.com</a> — no credit card required.</p>
+    <div class="hero-wrap">
+      <img class="hero-img"
+           src="https://img.icons8.com/fluency/200/office-building.png"
+           alt="Zyro Dynamics HR">
+      <div class="hero-body">
+        <div class="hero-eyebrow">Zyro Dynamics &mdash; Internal Platform</div>
+        <div class="hero-title">HR Help Desk <em>powered by AI</em></div>
+        <div class="hero-sub">
+          Intelligent, retrieval-augmented answers from 11 internal HR policy documents —
+          leave, compensation, performance, WFH, benefits, POSH, and more.
+        </div>
+        <div class="hero-pills">
+          <span class="pill pill-green"><span class="dot-live"></span>System Ready</span>
+          <span class="pill pill-blue">LLaMA 3.3 &middot; 70B</span>
+          <span class="pill pill-teal">FAISS Vector Search</span>
+          <span class="pill pill-gold">11 Policy Documents</span>
+        </div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.info(
+        "**Enter your Groq API Key** in the sidebar to activate the assistant.  \n"
+        "Get a free key at [console.groq.com](https://console.groq.com) — no credit card needed.",
+    )
     st.stop()
 
-# ── Build pipeline with progress UX ──────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  BUILD PIPELINE (with progress UX)
+# ══════════════════════════════════════════════════════════════════════════════
 if "rag_pipeline" not in st.session_state:
-    with st.status("🔧 Building HR knowledge base…", expanded=True) as status:
-        st.write("📄 Loading and parsing HR policy PDFs…")
-        time.sleep(0.3)
-        st.write("✂️  Chunking documents into semantic segments…")
+    with st.status("Initialising HR knowledge base...", expanded=True) as status:
+        st.write("Loading and parsing HR policy PDFs...")
         time.sleep(0.2)
-        st.write("🧠 Generating embeddings with all-MiniLM-L6-v2…")
+        st.write("Chunking documents into semantic segments...")
+        time.sleep(0.1)
+        st.write("Generating vector embeddings...")
         result = build_pipeline(groq_key)
         ask_bot, n_docs, n_chunks = result
         st.session_state.rag_pipeline = ask_bot
-        st.session_state.n_docs   = n_docs
-        st.session_state.n_chunks = n_chunks
-        st.write(f"✅ Indexed {n_chunks} chunks from {n_docs} documents.")
-        status.update(label="✅ Knowledge base ready!", state="complete")
+        st.session_state.n_docs       = n_docs
+        st.session_state.n_chunks     = n_chunks
+        st.write(f"Indexed {n_chunks} chunks from {n_docs} documents.")
+        status.update(label="Knowledge base ready.", state="complete")
 else:
     ask_bot  = st.session_state.rag_pipeline
-    n_docs   = st.session_state.get("n_docs", 11)
+    n_docs   = st.session_state.get("n_docs",   11)
     n_chunks = st.session_state.get("n_chunks", "—")
 
-# ── Session state ─────────────────────────────────────────────────────────────
+# session defaults
 if "messages"    not in st.session_state: st.session_state.messages    = []
 if "query_count" not in st.session_state: st.session_state.query_count = 0
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STATS ROW
+#  HERO BANNER  (only shown when ready)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(f"""
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="stat-num" style="background:linear-gradient(90deg,#818cf8,#22d3ee);
-         -webkit-background-clip:text;background-clip:text;color:transparent;">{n_docs}</div>
-    <div class="stat-label">Policy Docs</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num" style="background:linear-gradient(90deg,#22d3ee,#34d399);
-         -webkit-background-clip:text;background-clip:text;color:transparent;">{n_chunks}</div>
-    <div class="stat-label">Vector Chunks</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num" style="background:linear-gradient(90deg,#f472b6,#818cf8);
-         -webkit-background-clip:text;background-clip:text;color:transparent;">{st.session_state.query_count}</div>
-    <div class="stat-label">Queries Answered</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num" style="background:linear-gradient(90deg,#fbbf24,#f472b6);
-         -webkit-background-clip:text;background-clip:text;color:transparent;">LLaMA</div>
-    <div class="stat-label">3.3 · 70B</div>
+<div class="hero-wrap">
+  <img class="hero-img"
+       src="https://img.icons8.com/fluency/200/office-building.png"
+       alt="Zyro Dynamics HR">
+  <div class="hero-body">
+    <div class="hero-eyebrow">Zyro Dynamics &mdash; Internal HR Platform</div>
+    <div class="hero-title">HR Help Desk <em>powered by AI</em></div>
+    <div class="hero-sub">
+      Ask any question about company policies — leave entitlements, compensation,
+      performance reviews, WFH arrangements, POSH guidelines, and more.
+      Answers are grounded in official Zyro Dynamics HR documents.
+    </div>
+    <div class="hero-pills">
+      <span class="pill pill-green"><span class="dot-live"></span>System Online</span>
+      <span class="pill pill-blue">LLaMA 3.3 &middot; 70B via Groq</span>
+      <span class="pill pill-teal">FAISS Semantic Search</span>
+      <span class="pill pill-gold">{n_docs} Policy Documents &middot; {n_chunks} Chunks</span>
+    </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# RENDER CHAT HISTORY
+#  STATS ROW
 # ══════════════════════════════════════════════════════════════════════════════
-# Empty state
+st.markdown(f"""
+<div class="stats-row">
+  <div class="stat-card">
+    <span class="stat-num stat-num-accent">{n_docs}</span>
+    <span class="stat-label">Policy Documents</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-num stat-num-teal">{n_chunks}</span>
+    <span class="stat-label">Vector Chunks</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-num stat-num-green">{st.session_state.query_count}</span>
+    <span class="stat-label">Queries Answered</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-num stat-num-gold" style="font-size:1.2rem;padding-top:.3rem;">LLaMA 3.3</span>
+    <span class="stat-label">70B &middot; Groq Inference</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── RAG info bar ──────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="rag-info-bar">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7b93f9" stroke-width="2">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <span>
+    Retrieval method: <b>FAISS cosine similarity</b> &middot;
+    Model: <b>LLaMA-3.3-70B-Versatile</b> &middot;
+    Answers are grounded in policy documents only &mdash; hallucinations are actively suppressed.
+  </span>
+</div>
+""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  CHAT HISTORY
+# ══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.messages:
     st.markdown("""
-    <div class="zyro-card" style="text-align:center;padding:2rem;">
-      <div style="font-size:2.5rem;margin-bottom:0.6rem;">💬</div>
-      <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:0.4rem;">
-        Ask your HR question
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="1.8" stroke-linecap="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        </svg>
       </div>
-      <div style="color:#8b9bc7;font-size:0.88rem;max-width:420px;margin:0 auto;line-height:1.6;">
-        Type any HR policy question below, or click a quick question in the sidebar.
-        I'll search through all 11 Zyro Dynamics policy documents to find your answer.
-      </div>
+      <h3>How can we help you today?</h3>
+      <p>
+        Type your HR policy question below or select a topic from the sidebar.
+        This assistant searches all 11 Zyro Dynamics policy documents to provide
+        accurate, policy-grounded responses.
+      </p>
     </div>
     """, unsafe_allow_html=True)
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if not msg.get("in_scope", True):
-            st.markdown(f'<div class="oos-box">⚠️ {msg["content"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="oos-card">{msg["content"]}</div>',
+                        unsafe_allow_html=True)
         else:
-            st.write(msg["content"])
+            st.markdown(msg["content"])
+
         if msg.get("sources"):
-            with st.expander("📄 Source citations", expanded=False):
+            with st.expander(f"Source citations ({len(msg['sources'])} documents referenced)",
+                             expanded=False):
                 for s in msg["sources"]:
-                    # Clean up filename for display
-                    fname = s["file"].replace("_", " ").replace(".pdf", "")
+                    fname = (s["file"]
+                             .replace("_", " ")
+                             .replace(".pdf", "")
+                             .title())
                     st.markdown(
-                        f'<span class="source-pill">📑 {fname} · p.{s["page"]}</span>',
+                        f'<span class="cite-pill">'
+                        f'<span class="cite-dot"></span>'
+                        f'{fname} &nbsp;&middot;&nbsp; page&nbsp;{s["page"]}'
+                        f'</span>',
                         unsafe_allow_html=True,
                     )
 
+        if msg.get("score") and msg.get("in_scope"):
+            st.caption(f"Relevance score: {msg['score']:.3f}")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
-# QUESTION HANDLER
+#  QUESTION HANDLER
 # ══════════════════════════════════════════════════════════════════════════════
-def handle_question(prompt: str):
+def handle_question(prompt: str) -> None:
     st.session_state.messages.append({"role": "user", "content": prompt})
+
     with st.chat_message("user"):
-        st.write(prompt)
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("🔍 Searching HR policies…"):
-            result   = ask_bot(prompt)
+        with st.spinner("Searching HR policies..."):
+            result = ask_bot(prompt)
+
         answer   = result["answer"]
         sources  = result.get("sources", [])
         in_scope = result.get("in_scope", True)
+        score    = result.get("score", 0.0)
 
         if not in_scope:
-            st.markdown(f'<div class="oos-box">⚠️ {answer}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="oos-card">{answer}</div>', unsafe_allow_html=True)
         else:
-            st.write(answer)
+            st.markdown(answer)
 
         if sources:
-            with st.expander("📄 Source citations", expanded=True):
+            with st.expander(f"Source citations ({len(sources)} documents referenced)",
+                             expanded=True):
                 for s in sources:
-                    fname = s["file"].replace("_", " ").replace(".pdf", "")
+                    fname = (s["file"]
+                             .replace("_", " ")
+                             .replace(".pdf", "")
+                             .title())
                     st.markdown(
-                        f'<span class="source-pill">📑 {fname} · p.{s["page"]}</span>',
+                        f'<span class="cite-pill">'
+                        f'<span class="cite-dot"></span>'
+                        f'{fname} &nbsp;&middot;&nbsp; page&nbsp;{s["page"]}'
+                        f'</span>',
                         unsafe_allow_html=True,
                     )
+
+        if in_scope and score:
+            st.caption(f"Relevance score: {score:.3f}")
 
     st.session_state.messages.append({
         "role":     "assistant",
         "content":  answer,
         "sources":  sources,
         "in_scope": in_scope,
+        "score":    score,
     })
     st.session_state.query_count += 1
 
-# ── Handle sidebar quick-click ────────────────────────────────────────────────
+
+# ── Sidebar quick-click handler ───────────────────────────────────────────────
 if "pending_question" in st.session_state:
     handle_question(st.session_state.pop("pending_question"))
     st.rerun()
 
 # ── Live chat input ───────────────────────────────────────────────────────────
-if prompt := st.chat_input("Ask an HR question — leave, salary, WFH, performance, benefits…"):
+if prompt := st.chat_input("Ask a question about Zyro Dynamics HR policies..."):
     handle_question(prompt)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FOOTER
+#  FOOTER
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
-<div class="zyro-footer">
-  <strong>Zyro Dynamics</strong> © Confidential · Internal HR Help Desk ·
-  Built with <a href="https://langchain.com" target="_blank">LangChain</a> ·
-  <a href="https://console.groq.com" target="_blank">Groq</a> ·
+<div class="hr-footer">
+  Zyro Dynamics &copy; Confidential &mdash; Internal HR Help Desk &mdash;
+  Built with <a href="https://langchain.com" target="_blank">LangChain</a>,
+  <a href="https://console.groq.com" target="_blank">Groq</a> &amp;
   <a href="https://streamlit.io" target="_blank">Streamlit</a>
 </div>
 """, unsafe_allow_html=True)
