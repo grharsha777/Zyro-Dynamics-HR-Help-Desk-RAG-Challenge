@@ -1,23 +1,32 @@
 """
-╔══════════════════════════════════════════════════════════════════╗
-║   ZYRO DYNAMICS — HR HELP DESK · AI-POWERED POLICY ASSISTANT    ║
-║   NIAT × Kaggle RAG Challenge  |  Enterprise Edition            ║
-║   Stack: Groq LLaMA-3.3-70B · FAISS + BM25 · BAAI/bge-large    ║
-╚══════════════════════════════════════════════════════════════════╝
+Zyro Dynamics — HR Help Desk · AI-Powered Policy Assistant
+NIAT × Kaggle RAG Challenge  |  Enterprise Edition v3.0
+Stack: Groq LLaMA-3.3-70B · FAISS + BM25 Ensemble · BAAI/bge-large-en-v1.5
 """
 
+# ══════════════════════════════════════════════════════════════
+#  TOP-LEVEL IMPORTS  (never inside @st.cache_resource)
+# ══════════════════════════════════════════════════════════════
 import os
 import glob
 import time
-import json
 import traceback
-from datetime import datetime
 
 import streamlit as st
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PAGE CONFIG  (must be the very first Streamlit call)
-# ─────────────────────────────────────────────────────────────────────────────
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
+# ══════════════════════════════════════════════════════════════
+#  PAGE CONFIG  — must be the absolute first Streamlit call
+# ══════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Zyro Dynamics · HR Help Desk",
     page_icon="🏢",
@@ -25,319 +34,406 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": "https://github.com/grharsha777/Zyro-Dynamics-HR-Help-Desk-RAG-Challenge",
-        "Report a bug": "https://github.com/grharsha777/Zyro-Dynamics-HR-Help-Desk-RAG-Challenge/issues",
-        "About": "Zyro Dynamics HR Help Desk — powered by LangChain + Groq + FAISS.\nBuilt for the NIAT × Kaggle RAG Challenge.",
+        "About": "Zyro Dynamics HR Help Desk — LangChain + Groq + FAISS. NIAT × Kaggle RAG Challenge.",
     },
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CUSTOM CSS  — dark-navy enterprise theme
-# ─────────────────────────────────────────────────────────────────────────────
-st.markdown(
-    """
+# ══════════════════════════════════════════════════════════════
+#  DESIGN SYSTEM  — single CSS block, dark enterprise theme
+# ══════════════════════════════════════════════════════════════
+st.markdown("""
 <style>
-/* ── Global resets ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── base ── */
 html, body, [class*="css"] {
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+[data-testid="stAppViewContainer"] {
+    background: #060d18;
+}
+[data-testid="stMain"] > div {
+    padding-top: 1.5rem;
 }
 #MainMenu, footer, header { visibility: hidden; }
 
-/* ── Sidebar ────────────────────────────────────── */
+/* ── sidebar ── */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0d1117 0%, #161b27 100%);
-    border-right: 1px solid #21262d;
+    background: #07111f;
+    border-right: 1px solid #0f2035;
 }
-[data-testid="stSidebar"] * { color: #c9d1d9 !important; }
+[data-testid="stSidebar"] * { color: #8ba3be !important; }
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 { color: #c8daea !important; }
+
+/* sample-query buttons */
 [data-testid="stSidebar"] .stButton > button {
-    background: #1f2937;
-    border: 1px solid #374151;
-    color: #e5e7eb !important;
+    width: 100%;
+    background: #0d1e30;
+    border: 1px solid #133045;
     border-radius: 8px;
-    font-size: 0.82rem;
+    color: #7fa8c9 !important;
+    font-size: 0.78rem;
+    font-weight: 500;
     text-align: left;
-    transition: all 0.2s ease;
     padding: 0.5rem 0.75rem;
+    margin-bottom: 2px;
+    transition: all 0.18s ease;
+    cursor: pointer;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #1e40af;
-    border-color: #3b82f6;
-    color: #fff !important;
-    transform: translateX(3px);
+    background: #102840;
+    border-color: #1e6091;
+    color: #a8d4f5 !important;
+    transform: translateX(4px);
+    box-shadow: -3px 0 0 #1e6091;
 }
 
-/* ── Hero banner ────────────────────────────────── */
-.hero-banner {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
-    border: 1px solid #1e40af33;
+/* clear-chat button */
+.clear-btn button {
+    background: #1a0a0a !important;
+    border: 1px solid #5c1a1a !important;
+    color: #f87171 !important;
+}
+.clear-btn button:hover {
+    background: #2d0f0f !important;
+    border-color: #ef4444 !important;
+}
+
+/* ── hero banner ── */
+.hero {
+    background: linear-gradient(135deg, #060d18 0%, #0a1e35 45%, #081828 100%);
+    border: 1px solid #112236;
     border-radius: 16px;
-    padding: 2.5rem 2rem 2rem;
-    margin-bottom: 1.5rem;
+    padding: 2.25rem 2.5rem 2rem;
+    margin-bottom: 1.25rem;
     position: relative;
     overflow: hidden;
 }
-.hero-banner::before {
+.hero::before {
     content: '';
     position: absolute;
-    top: -40%;
-    right: -10%;
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, #1e40af22, transparent 70%);
+    top: -80px; right: -80px;
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, #1a4d7a18, transparent 70%);
     border-radius: 50%;
+    pointer-events: none;
 }
-.hero-tagline {
-    font-size: 0.8rem;
-    letter-spacing: 0.18em;
-    color: #60a5fa;
-    font-weight: 600;
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 20%;
+    width: 250px; height: 250px;
+    background: radial-gradient(circle, #7c3aed10, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.hero-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
-    margin-bottom: 0.5rem;
+    color: #2d7fc1;
+    margin-bottom: 0.6rem;
 }
 .hero-title {
-    font-size: 2.4rem;
+    font-size: 2.2rem;
     font-weight: 800;
-    color: #f0f6ff;
-    margin: 0 0 0.25rem;
+    color: #ddeeff;
     line-height: 1.1;
+    margin: 0 0 0.5rem;
 }
-.hero-title em {
-    font-style: italic;
-    background: linear-gradient(90deg, #60a5fa, #818cf8);
+.hero-title span {
+    background: linear-gradient(90deg, #3b9ded, #818cf8);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    font-style: italic;
 }
-.hero-desc {
-    color: #94a3b8;
-    font-size: 0.97rem;
-    margin: 0.5rem 0 1.2rem;
-    max-width: 680px;
-    line-height: 1.6;
+.hero-sub {
+    font-size: 0.92rem;
+    color: #4a7a9b;
+    max-width: 640px;
+    line-height: 1.65;
+    margin-bottom: 1.4rem;
 }
-.hero-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-}
+.pill-row { display: flex; flex-wrap: wrap; gap: 0.45rem; }
 .pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    background: #1e293b;
-    border: 1px solid #334155;
+    gap: 0.35rem;
+    padding: 0.28rem 0.85rem;
     border-radius: 100px;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    color: #94a3b8;
-    font-weight: 500;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
 }
-.pill-green  { border-color: #16a34a55; color: #4ade80; }
-.pill-blue   { border-color: #1d4ed855; color: #60a5fa; }
-.pill-purple { border-color: #7c3aed55; color: #a78bfa; }
-.pill-yellow { border-color: #d9770655; color: #fbbf24; }
+.pill-online  { background:#052412; border:1px solid #14532d55; color:#4ade80; }
+.pill-model   { background:#05112b; border:1px solid #1e3a8a55; color:#60a5fa; }
+.pill-search  { background:#160b2a; border:1px solid #4c1d9555; color:#a78bfa; }
+.pill-docs    { background:#1a0f04; border:1px solid #78350f55; color:#fbbf24; }
 
-/* ── Stats row ──────────────────────────────────── */
-.stats-row {
+/* ── stats grid ── */
+.stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
+    gap: 0.875rem;
+    margin-bottom: 1.25rem;
 }
-.stat-card {
-    background: #0d1117;
-    border: 1px solid #21262d;
+.stat {
+    background: #07111f;
+    border: 1px solid #0f2035;
     border-radius: 12px;
-    padding: 1rem 1.25rem;
+    padding: 1.1rem 1.25rem;
     text-align: center;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
 }
-.stat-card:hover { border-color: #3b82f6; }
-.stat-number {
-    font-size: 2rem;
+.stat:hover {
+    border-color: #1e6091;
+    transform: translateY(-2px);
+}
+.stat-val {
+    font-size: 1.9rem;
     font-weight: 800;
-    color: #60a5fa;
+    color: #3b9ded;
     line-height: 1;
+    letter-spacing: -0.02em;
 }
-.stat-label {
-    font-size: 0.72rem;
-    color: #6b7280;
+.stat-val.purple { color: #a78bfa; font-size: 1.25rem; }
+.stat-lbl {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 0.35rem;
-}
-
-/* ── Chat bubbles ───────────────────────────────── */
-[data-testid="stChatMessage"] {
-    border-radius: 12px;
-    padding: 0.25rem 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-/* ── Source badges ──────────────────────────────── */
-.src-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.78rem;
-    color: #93c5fd;
-    margin: 0.25rem 0.25rem 0 0;
-    font-weight: 500;
-}
-.src-badge .src-page {
-    background: #1e3a5f;
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.7rem;
-    color: #60a5fa;
-}
-
-/* ── Info footer bar ────────────────────────────── */
-.info-bar {
-    background: #0d1117;
-    border: 1px solid #21262d;
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    font-size: 0.78rem;
-    color: #6b7280;
-    margin-top: 1.5rem;
-}
-.info-bar strong { color: #60a5fa; }
-
-/* ── OOS warning box ────────────────────────────── */
-.oos-box {
-    background: #1c0a0a;
-    border-left: 4px solid #f87171;
-    border-radius: 0 8px 8px 0;
-    padding: 0.85rem 1rem;
-    font-size: 0.9rem;
-    color: #fca5a5;
-}
-
-/* ── Response time chip ─────────────────────────── */
-.rt-chip {
-    display: inline-block;
-    background: #0f2027;
-    border: 1px solid #1e3a5f;
-    border-radius: 100px;
-    padding: 2px 10px;
-    font-size: 0.72rem;
-    color: #38bdf8;
+    color: #274a65;
     margin-top: 0.4rem;
 }
 
-/* ── Expander tweak ─────────────────────────────── */
-[data-testid="stExpander"] summary {
-    font-size: 0.83rem;
-    color: #60a5fa !important;
+/* ── chat area ── */
+[data-testid="stChatMessage"] {
+    background: transparent;
+    padding: 0.2rem 0;
 }
+[data-testid="stChatMessageContent"] p {
+    color: #c8daea;
+    line-height: 1.7;
+    font-size: 0.93rem;
+}
+
+/* ── source badges ── */
+.src-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.src-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #0a1e30;
+    border: 1px solid #112f4a;
+    border-radius: 8px;
+    padding: 0.38rem 0.8rem;
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: #7fb8e0;
+    transition: border-color 0.15s;
+}
+.src-badge:hover { border-color: #2d7fc1; }
+.src-page {
+    background: #112f4a;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 0.68rem;
+    color: #3b9ded;
+    font-weight: 600;
+}
+.src-cat {
+    font-size: 0.68rem;
+    color: #2d5f7a;
+    font-style: italic;
+}
+
+/* ── OOS box ── */
+.oos-box {
+    background: #110708;
+    border-left: 3px solid #dc2626;
+    border-radius: 0 8px 8px 0;
+    padding: 0.85rem 1.1rem;
+    color: #fca5a5;
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+/* ── response time chip ── */
+.rt-chip {
+    display: inline-block;
+    background: #050e1a;
+    border: 1px solid #0d2235;
+    border-radius: 100px;
+    padding: 2px 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #2d7fc1;
+    margin-top: 0.5rem;
+}
+
+/* ── info footer ── */
+.info-bar {
+    background: #07111f;
+    border: 1px solid #0f2035;
+    border-radius: 10px;
+    padding: 0.8rem 1.25rem;
+    font-size: 0.76rem;
+    color: #274a65;
+    margin-top: 1.5rem;
+    line-height: 1.7;
+}
+.info-bar b { color: #3b9ded; }
+
+/* ── expander ── */
+details summary {
+    color: #2d7fc1 !important;
+    font-size: 0.81rem !important;
+    font-weight: 600 !important;
+}
+[data-testid="stExpander"] {
+    background: #07111f !important;
+    border: 1px solid #0f2035 !important;
+    border-radius: 8px !important;
+}
+
+/* ── chat input ── */
+[data-testid="stChatInput"] {
+    background: #07111f !important;
+    border: 1px solid #112f4a !important;
+    border-radius: 12px !important;
+}
+[data-testid="stChatInput"] textarea {
+    color: #c8daea !important;
+    font-size: 0.9rem !important;
+}
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #274a65 !important;
+}
+
+/* ── divider ── */
+hr { border-color: #0f2035 !important; opacity: 1 !important; }
+
+/* ── metric ── */
+[data-testid="stMetric"] label { color: #274a65 !important; font-size: 0.72rem !important; }
+[data-testid="stMetricValue"]  { color: #3b9ded !important; font-size: 1.4rem !important; }
+
+/* ── scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #060d18; }
+::-webkit-scrollbar-thumb { background: #0f2035; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #1e4060; }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SESSION STATE INIT
-# ─────────────────────────────────────────────────────────────────────────────
-def _init_state() -> None:
-    defaults = {
-        "chat_history"        : [],   # list of {"role", "content", "sources", "in_scope", "elapsed"}
-        "generated_responses" : 0,
-        "retrieved_sources"   : [],
-        "pending_question"    : None,
-    }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
 
-_init_state()
+# ══════════════════════════════════════════════════════════════
+#  SESSION STATE
+# ══════════════════════════════════════════════════════════════
+for _k, _v in {
+    "chat_history": [],
+    "queries_answered": 0,
+    "pending_question": None,
+}.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════
+#  SIDEBAR
+# ══════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown(
-        """
-        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
-            <span style="font-size:2rem">🏢</span>
-            <div>
-                <div style="font-weight:700;color:#f0f6ff;font-size:1rem">Zyro Dynamics</div>
-                <div style="font-size:0.72rem;color:#64748b">HR HELP DESK · AI</div>
+    # Brand
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:0.7rem;padding:0.25rem 0 1rem">
+        <div style="font-size:2rem;line-height:1">🏢</div>
+        <div>
+            <div style="font-size:1.05rem;font-weight:700;color:#c8daea">Zyro Dynamics</div>
+            <div style="font-size:0.65rem;letter-spacing:0.15em;color:#274a65;font-weight:600">
+                HR HELP DESK · AI
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
+    """, unsafe_allow_html=True)
+
     st.divider()
 
-    # ── API keys ─────────────────────────────────────────────────────────────
-    st.markdown("**⚙️ CONFIGURATION**")
+    # API keys
+    st.markdown("<div style='font-size:0.72rem;font-weight:700;letter-spacing:0.12em;"
+                "color:#274a65;margin-bottom:0.5rem'>⚙️ CONFIGURATION</div>",
+                unsafe_allow_html=True)
+
     groq_key = st.text_input(
         "Groq API Key",
         type="password",
         value=os.environ.get("GROQ_API_KEY", ""),
-        help="Get a free key at https://console.groq.com",
+        help="Free key at https://console.groq.com",
         placeholder="gsk_••••••••••••••••",
+        label_visibility="visible",
     )
     langchain_key = st.text_input(
         "LangChain API Key (optional)",
         type="password",
         value=os.environ.get("LANGCHAIN_API_KEY", ""),
-        help="Enables LangSmith tracing for debugging & monitoring",
+        help="Enables LangSmith tracing",
         placeholder="ls__••••••••••••••••",
+        label_visibility="visible",
     )
 
     st.divider()
 
-    # ── Sample questions ─────────────────────────────────────────────────────
-    st.markdown("**💡 SAMPLE QUERIES**")
-    sample_qs = [
+    # Sample questions
+    st.markdown("<div style='font-size:0.72rem;font-weight:700;letter-spacing:0.12em;"
+                "color:#274a65;margin-bottom:0.5rem'>💡 SAMPLE QUERIES</div>",
+                unsafe_allow_html=True)
+
+    SAMPLE_QS = [
         "How many earned leave days per year?",
         "When is salary credited each month?",
         "What is the WFH policy for L3 employees?",
-        "What health insurance coverage do employees get?",
-        "How long is the PIP duration?",
-        "What is the Annual Performance Review process?",
+        "What health insurance do employees receive?",
+        "How long does a PIP last?",
+        "Explain the Annual Performance Review process.",
         "What is the payroll cut-off date?",
-        "Explain the POSH policy at Zyro Dynamics.",
-        "What are the travel expense reimbursement limits?",
+        "What are the POSH policy guidelines?",
+        "What are travel expense reimbursement limits?",
         "How many days notice for resignation?",
     ]
-    for sq in sample_qs:
-        if st.button(sq, use_container_width=True, key=f"sq_{hash(sq)}"):
-            st.session_state.pending_question = sq
+    for q in SAMPLE_QS:
+        if st.button(q, use_container_width=True, key=f"sq_{hash(q)}"):
+            st.session_state.pending_question = q
 
     st.divider()
 
-    # ── Status + controls ─────────────────────────────────────────────────────
-    st.markdown("**📊 SESSION**")
-    col_s1, col_s2 = st.columns(2)
-    col_s1.metric("Queries", st.session_state.generated_responses)
-    col_s2.metric("Turns", len(st.session_state.chat_history))
+    # Session stats + clear
+    c1, c2 = st.columns(2)
+    c1.metric("Queries", st.session_state.queries_answered)
+    c2.metric("Turns", len(st.session_state.chat_history))
 
+    st.markdown('<div class="clear-btn">', unsafe_allow_html=True)
     if st.button("🗑️ Clear Chat", use_container_width=True):
-        st.session_state.chat_history        = []
-        st.session_state.generated_responses = 0
-        st.session_state.retrieved_sources   = []
+        st.session_state.chat_history     = []
+        st.session_state.queries_answered = 0
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
-    st.markdown(
-        "<div style='font-size:0.72rem;color:#4b5563;line-height:1.6'>"
-        "<strong style='color:#60a5fa'>v2.0 · Enterprise Edition</strong><br>"
-        "NIAT × Kaggle RAG Challenge<br>"
-        "LangChain · FAISS · BM25 · Groq<br>"
-        "BAAI/bge-large-en-v1.5<br>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+    <div style="font-size:0.7rem;color:#274a65;line-height:1.8">
+        <b style="color:#2d7fc1">v3.0 · Enterprise</b><br>
+        NIAT × Kaggle RAG Challenge<br>
+        LangChain · FAISS · BM25 · Groq<br>
+        BAAI/bge-large-en-v1.5
+    </div>
+    """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ENV VARS  (apply sidebar keys to environment)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════
+#  APPLY ENV VARS FROM SIDEBAR
+# ══════════════════════════════════════════════════════════════
 if groq_key:
     os.environ["GROQ_API_KEY"] = groq_key
 if langchain_key:
@@ -345,37 +441,59 @@ if langchain_key:
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ["LANGCHAIN_PROJECT"]    = "zyro-rag-challenge"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RAG PIPELINE  (cached — loads ONCE per Streamlit session)
-# ─────────────────────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner="📚 Building HR knowledge base — please wait…")
+
+# ══════════════════════════════════════════════════════════════
+#  HR CATEGORY TAGGER
+# ══════════════════════════════════════════════════════════════
+_HR_CATS = {
+    "Leave":         ["leave", "earned leave", "sick leave", "maternity", "paternity",
+                      "casual leave", " cl ", " el ", " sl ", "annual leave"],
+    "Compensation":  ["salary", "payroll", "ctc", "bonus", "increment", "compensation",
+                      "pay slip", "deduction", "tax", "wages"],
+    "WFH / Remote":  ["work from home", "wfh", "hybrid", "remote", "work location",
+                      "flexible work"],
+    "Performance":   ["performance", "pip", "apr", "kra", "kpi", "review", "rating",
+                      "promotion", "appraisal", "pmp"],
+    "Benefits":      ["insurance", "health", "medical", "dental", "vision", "benefit",
+                      "provident fund", " pf ", "gratuity", "esic"],
+    "IT / Security": ["it policy", "cybersecurity", "data protection", "password",
+                      "device", "laptop", "software", "gdpr"],
+    "POSH":          ["posh", "harassment", "sexual", "iqc", "complaint", "misconduct"],
+    "Onboarding":    ["onboarding", "probation", "joining", "induction", "background check"],
+    "Separation":    ["separation", "resignation", "notice period", "fnf",
+                      "full and final", "termination", "exit interview"],
+    "Travel":        ["travel", "expense", "reimbursement", "per diem", "ticket", "hotel"],
+    "Conduct":       ["code of conduct", "ethics", "discipline", "nda", "confidentiality"],
+}
+
+def _tag_category(text: str) -> str:
+    tl = text.lower()
+    tags = [cat for cat, kws in _HR_CATS.items() if any(kw in tl for kw in kws)]
+    return ", ".join(tags) if tags else "General"
+
+
+# ══════════════════════════════════════════════════════════════
+#  RAG PIPELINE  (cached — builds once per server session)
+# ══════════════════════════════════════════════════════════════
+@st.cache_resource(show_spinner="📚 Initialising HR knowledge base…")
 def build_pipeline(_groq_key: str):
     """
-    Full RAG pipeline:
-      PDF loading → chunking → BAAI/bge-large embeddings → FAISS index
-      BM25 retriever → Ensemble (FAISS 0.7 + BM25 0.3)
-      Groq LLaMA-3.3-70B · dual-layer guardrails
+    PDF load → chunk → BAAI/bge-large embed → FAISS index
+    BM25 retriever → Ensemble 70/30 → LLaMA-3.3-70B (Groq)
+    Returns (ask_bot fn, vectorstore, n_docs, n_chunks)
     """
-    from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-    from langchain_huggingface import HuggingFaceBgeEmbeddings
-    from langchain_community.vectorstores import FAISS
-    from langchain_community.retrievers import BM25Retriever
-    from langchain.retrievers import EnsembleRetriever
-    from langchain_groq import ChatGroq
-    from langchain_core.prompts import ChatPromptTemplate
-    from langchain_core.output_parsers import StrOutputParser
 
-    # ── Locate corpus ─────────────────────────────────────────────────────────
-    search_paths = [
+    # ── 1. Locate corpus ──────────────────────────────────────
+    SEARCH_PATHS = [
         "/kaggle/input/niat-masterclass-rag-challenge/",
         "/kaggle/input/zyro-dynamics-hr-corpus/",
         "/kaggle/input/",
-        "./data/",
+        os.path.join(os.path.dirname(__file__), "data"),
+        os.path.dirname(os.path.abspath(__file__)),
         ".",
     ]
-    pdf_files = []
-    for base in search_paths:
+    pdf_files: list[str] = []
+    for base in SEARCH_PATHS:
         found = sorted(glob.glob(os.path.join(base, "**/*.pdf"), recursive=True))
         if found:
             pdf_files = found
@@ -383,384 +501,315 @@ def build_pipeline(_groq_key: str):
 
     if not pdf_files:
         st.error(
-            "⚠️ No PDF files found. Attach the HR corpus dataset in Kaggle, "
-            "or place PDFs in a `./data/` folder alongside app.py.",
+            "**No PDF files found.** Attach the HR corpus dataset in Kaggle, "
+            "or place PDFs in a `data/` folder next to `app.py`.",
             icon="📂",
         )
         st.stop()
 
-    # ── Load documents ────────────────────────────────────────────────────────
+    # ── 2. Load PDFs ──────────────────────────────────────────
     documents = []
     for path in pdf_files:
         try:
             loader = PyPDFLoader(path)
-            docs   = loader.load()
-            # Normalise source to just the filename
-            for d in docs:
-                d.metadata["source"] = os.path.splitext(os.path.basename(path))[0]
-            documents.extend(docs)
+            pages  = loader.load()
+            stem   = os.path.splitext(os.path.basename(path))[0]
+            for p in pages:
+                p.metadata["source"] = stem
+            documents.extend(pages)
         except Exception as exc:
-            st.warning(f"Could not load {os.path.basename(path)}: {exc}")
-
-    # Load TXTs and CSVs if present
-    for base in search_paths:
-        for txt in glob.glob(os.path.join(base, "*.txt")):
-            try:
-                docs = TextLoader(txt).load()
-                for d in docs:
-                    d.metadata["source"] = os.path.splitext(os.path.basename(txt))[0]
-                documents.extend(docs)
-            except Exception:
-                pass
-        for csv_f in glob.glob(os.path.join(base, "*.csv")):
-            try:
-                docs = CSVLoader(csv_f).load()
-                for d in docs:
-                    d.metadata["source"] = os.path.splitext(os.path.basename(csv_f))[0]
-                documents.extend(docs)
-            except Exception:
-                pass
-        if documents:
-            break
+            st.warning(f"Skipped {os.path.basename(path)}: {exc}")
 
     if not documents:
-        st.error("No document content loaded. Check your corpus path.")
+        st.error("All PDFs failed to load. Check corpus integrity.")
         st.stop()
 
-    # ── Chunk ─────────────────────────────────────────────────────────────────
+    # ── 3. Chunk ──────────────────────────────────────────────
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
         separators=["\n\n", "\n", ". ", " ", ""],
     )
     chunks = splitter.split_documents(documents)
+    for c in chunks:
+        c.metadata["hr_category"] = _tag_category(c.page_content)
 
-    # Enrich metadata with HR category tags
-    HR_CATEGORIES = {
-        "Leave"         : ["leave", "earned leave", "sick leave", "maternity", "paternity",
-                           "casual leave", "cl ", "el ", "sl "],
-        "Compensation"  : ["salary", "payroll", "ctc", "bonus", "increment", "compensation",
-                           "pay slip", "deduction", "tax"],
-        "WFH/Remote"    : ["work from home", "wfh", "hybrid", "remote", "work location"],
-        "Performance"   : ["performance", "pip", "apr", "kra", "kpi", "review", "rating",
-                           "promotion", "appraisal"],
-        "Benefits"      : ["insurance", "health", "medical", "dental", "vision", "benefit",
-                           "provident fund", "pf ", "gratuity"],
-        "IT/Security"   : ["it policy", "cybersecurity", "data protection", "password",
-                           "device", "laptop", "software"],
-        "POSH"          : ["posh", "harassment", "sexual", "iqc", "complaint"],
-        "Onboarding"    : ["onboarding", "probation", "joining", "induction", "background"],
-        "Separation"    : ["separation", "resignation", "notice period", "fnf", "full and final",
-                           "termination", "exit"],
-        "Travel"        : ["travel", "expense", "reimbursement", "per diem", "ticket", "hotel"],
-        "Conduct"       : ["code of conduct", "ethics", "discipline", "misconduct", "nda"],
-    }
-    for chunk in chunks:
-        text_lower = chunk.page_content.lower()
-        tags = [cat for cat, kws in HR_CATEGORIES.items() if any(kw in text_lower for kw in kws)]
-        chunk.metadata["hr_category"] = ", ".join(tags) if tags else "General"
-
-    # ── Embeddings — BAAI/bge-large-en-v1.5 ──────────────────────────────────
-    embeddings = HuggingFaceBgeEmbeddings(
+    # ── 4. Embeddings — BAAI/bge-large-en-v1.5 ───────────────
+    embeddings = HuggingFaceEmbeddings(
         model_name="BAAI/bge-large-en-v1.5",
         model_kwargs={"device": "cpu"},
         encode_kwargs={"normalize_embeddings": True},
     )
 
-    # ── FAISS vector store ────────────────────────────────────────────────────
+    # ── 5. FAISS vector store ─────────────────────────────────
     vectorstore = FAISS.from_documents(chunks, embeddings)
-    faiss_retriever = vectorstore.as_retriever(
+    faiss_ret   = vectorstore.as_retriever(
         search_type="mmr",
         search_kwargs={"k": 6, "fetch_k": 20, "lambda_mult": 0.65},
     )
 
-    # ── BM25 keyword retriever ────────────────────────────────────────────────
-    bm25_retriever        = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k      = 10
+    # ── 6. BM25 retriever ─────────────────────────────────────
+    bm25_ret   = BM25Retriever.from_documents(chunks)
+    bm25_ret.k = 10
 
-    # ── Ensemble retriever (semantic 70% + keyword 30%) ───────────────────────
-    ensemble_retriever = EnsembleRetriever(
-        retrievers=[faiss_retriever, bm25_retriever],
+    # ── 7. Ensemble retriever (FAISS 70% + BM25 30%) ─────────
+    ensemble = EnsembleRetriever(
+        retrievers=[faiss_ret, bm25_ret],
         weights=[0.7, 0.3],
     )
 
-    # ── LLM ──────────────────────────────────────────────────────────────────
+    # ── 8. LLM ───────────────────────────────────────────────
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
         temperature=0.1,
         max_tokens=768,
         api_key=_groq_key,
-        streaming=True,
+        streaming=False,        # keep False for simplicity; switch on for streaming UX
     )
     parser = StrOutputParser()
 
-    # ── Prompts ───────────────────────────────────────────────────────────────
+    # ── 9. Prompts ────────────────────────────────────────────
     RAG_PROMPT = ChatPromptTemplate.from_template(
-        """You are an expert HR Help Desk assistant for Zyro Dynamics (also known as Acrux Dynamics).
-
-Your role: Answer employee HR questions with precision using ONLY the policy context below.
-
-Guidelines:
-- Quote exact numbers, dates, percentages, and limits from the context.
-- If multiple policies apply, mention each one with its source.
-- Never invent information not present in the context.
-- Format answers clearly — use bullet points for lists.
-- If the context is insufficient, respond:
-  "The HR policy documents do not contain sufficient detail to answer this question. Please contact HR directly."
-
-HR Policy Context:
-{context}
-
-Employee Question: {question}
-
-Grounded Answer:"""
+        "You are an expert HR Help Desk assistant for Zyro Dynamics "
+        "(also called Acrux Dynamics).\n\n"
+        "Rules:\n"
+        "- Answer using ONLY the HR Policy Context below.\n"
+        "- Be precise: cite exact numbers, dates, percentages.\n"
+        "- Use bullet points for multi-item answers.\n"
+        "- If the context lacks enough detail, say:\n"
+        '  "The HR policy documents do not contain sufficient detail to answer '
+        'this question. Please contact HR directly."\n'
+        "- Never fabricate information.\n\n"
+        "HR Policy Context:\n{context}\n\n"
+        "Employee Question: {question}\n\n"
+        "Grounded Answer:"
     )
 
     OOS_PROMPT = ChatPromptTemplate.from_template(
-        """You are a strict scope classifier for an HR policy chatbot.
-
-Classify whether this question can be answered using Zyro Dynamics internal HR policy documents.
-
-In-scope topics (HR policy documents cover ONLY):
-- Leave entitlements (earned, sick, maternity, paternity, casual, etc.)
-- Work-from-home, hybrid, and remote-work arrangements
-- Employee code of conduct and ethics
-- Performance reviews, PIP, APR, KRAs, promotions
-- Salary, compensation, payroll dates, bonuses
-- Health insurance and employee benefits (PF, gratuity, etc.)
-- IT and cybersecurity policies
-- Prevention of Sexual Harassment (POSH)
-- Onboarding, probation, induction
-- Separation, resignation, notice period, full-and-final settlement
-- Business travel and expense reimbursement
-- General company overview, grade structure, office policies
-
-Question: {question}
-
-Reply with EXACTLY one token: IN_SCOPE or OUT_OF_SCOPE"""
+        "You are a strict scope classifier for an HR policy chatbot.\n\n"
+        "In-scope topics (HR policy documents ONLY):\n"
+        "- Leave entitlements (earned, sick, maternity, paternity, casual)\n"
+        "- WFH, hybrid, remote-work arrangements\n"
+        "- Code of conduct and ethics\n"
+        "- Performance reviews, PIP, APR, KRAs, promotions\n"
+        "- Salary, compensation, payroll, bonuses\n"
+        "- Health insurance and benefits (PF, gratuity)\n"
+        "- IT and cybersecurity policies\n"
+        "- POSH (Prevention of Sexual Harassment)\n"
+        "- Onboarding, probation, induction\n"
+        "- Separation, resignation, notice period, F&F settlement\n"
+        "- Business travel and expense reimbursement\n"
+        "- Company overview, grade structure, office policies\n\n"
+        "Question: {question}\n\n"
+        "Reply with EXACTLY one token: IN_SCOPE or OUT_OF_SCOPE"
     )
 
-    REFUSAL_MSG = (
-        "I'm sorry — I can only answer HR-related questions using "
-        "Zyro Dynamics internal policy documents. Your question appears to be "
-        "outside that scope. Please reach out to the relevant department "
-        "or consult an external resource for assistance."
+    REFUSAL = (
+        "I can only answer HR-related questions grounded in Zyro Dynamics "
+        "internal policy documents. Your question appears to be outside that "
+        "scope. Please reach out to the relevant department or consult an "
+        "external resource."
     )
 
-    # ── Document formatter ────────────────────────────────────────────────────
-    def format_docs(docs) -> str:
+    # ── 10. Document formatter ────────────────────────────────
+    def _fmt(docs) -> str:
         parts = []
-        for i, doc in enumerate(docs, 1):
-            src  = doc.metadata.get("source", "Unknown")
-            page = doc.metadata.get("page", "?")
-            cat  = doc.metadata.get("hr_category", "")
+        for i, d in enumerate(docs, 1):
+            src  = d.metadata.get("source", "Unknown")
+            page = d.metadata.get("page", "?")
+            cat  = d.metadata.get("hr_category", "")
             tag  = f"  [{cat}]" if cat else ""
-            parts.append(
-                f"[Source {i}: {src}, page {page}{tag}]\n{doc.page_content}"
-            )
+            parts.append(f"[Source {i}: {src}, page {page}{tag}]\n{d.page_content}")
         return "\n\n---\n\n".join(parts)
 
-    # ── Core ask_bot function ─────────────────────────────────────────────────
+    # ── 11. ask_bot ───────────────────────────────────────────
     def ask_bot(question: str) -> dict:
-        # Layer 1 — LLM scope guard
+        # Layer 1 — scope guard
         try:
             verdict = parser.invoke(
                 llm.invoke(OOS_PROMPT.invoke({"question": question}))
             ).strip().upper()
         except Exception:
-            verdict = "IN_SCOPE"  # Fail open — let retrieval decide
+            verdict = "IN_SCOPE"   # fail open; let retrieval decide
 
         if "OUT_OF_SCOPE" in verdict:
-            return {"answer": REFUSAL_MSG, "sources": [], "in_scope": False}
+            return {"answer": REFUSAL, "sources": [], "in_scope": False}
 
-        # Layer 2 — Hybrid retrieval
+        # Layer 2 — hybrid retrieval
         try:
-            docs = ensemble_retriever.invoke(question)
+            docs = ensemble.invoke(question)
         except Exception:
             docs = vectorstore.similarity_search(question, k=5)
 
         if not docs:
-            return {"answer": REFUSAL_MSG, "sources": [], "in_scope": False}
+            return {"answer": REFUSAL, "sources": [], "in_scope": False}
 
-        # Layer 3 — FAISS relevance score sanity check
+        # Layer 3 — relevance floor
         try:
-            docs_scores = vectorstore.similarity_search_with_relevance_scores(question, k=3)
-            if docs_scores and docs_scores[0][1] < 0.20:
-                return {"answer": REFUSAL_MSG, "sources": [], "in_scope": False}
+            scored = vectorstore.similarity_search_with_relevance_scores(question, k=3)
+            if scored and scored[0][1] < 0.20:
+                return {"answer": REFUSAL, "sources": [], "in_scope": False}
         except Exception:
-            pass  # Skip score check if unsupported; carry on
+            pass
 
-        context = format_docs(docs)
+        # Layer 4 — generate answer
+        context = _fmt(docs)
         try:
             answer = parser.invoke(
                 llm.invoke(RAG_PROMPT.invoke({"context": context, "question": question}))
             )
         except Exception as exc:
-            return {
-                "answer" : f"⚠️ LLM error: {exc}. Please try again.",
-                "sources": [],
-                "in_scope": True,
-            }
+            return {"answer": f"⚠️ Generation error: {exc}", "sources": [], "in_scope": True}
 
-        sources = []
-        seen    = set()
-        for doc in docs:
-            src  = doc.metadata.get("source", "Unknown")
-            page = doc.metadata.get("page", "?")
-            cat  = doc.metadata.get("hr_category", "")
-            key  = (src, page)
+        # Deduplicate sources
+        seen, sources = set(), []
+        for d in docs:
+            key = (d.metadata.get("source", ""), d.metadata.get("page", "?"))
             if key not in seen:
                 seen.add(key)
-                sources.append({"file": src, "page": page, "category": cat})
+                sources.append({
+                    "file"    : d.metadata.get("source", "Unknown"),
+                    "page"    : d.metadata.get("page", "?"),
+                    "category": d.metadata.get("hr_category", ""),
+                })
 
         return {"answer": answer, "sources": sources, "in_scope": True}
 
-    # ── Expose corpus stats for the hero banner ───────────────────────────────
-    ask_bot._meta = {
-        "n_docs"  : len(pdf_files),
-        "n_chunks": len(chunks),
-    }
+    return ask_bot, vectorstore, len(pdf_files), len(chunks)
 
-    return ask_bot, vectorstore
 
-# ─────────────────────────────────────────────────────────────────────────────
-# GATE: require API key before loading pipeline
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+#  GATE — require API key
+# ══════════════════════════════════════════════════════════════
 if not groq_key:
-    # Hero banner (teaser)
-    st.markdown(
-        """
-        <div class="hero-banner">
-            <div class="hero-tagline">Zyro Dynamics — Internal HR Platform</div>
-            <div class="hero-title">HR Help Desk <em>powered by AI</em></div>
-            <div class="hero-desc">
-                Ask any question about company policies — leave entitlements, compensation,
-                performance reviews, WFH arrangements, POSH guidelines, and more.
-                Answers are grounded in official Zyro Dynamics HR documents.
-            </div>
-            <div class="hero-pills">
-                <span class="pill pill-green">● Enter your Groq API key to start</span>
-                <span class="pill pill-blue">LLaMA 3.3 · 70B via Groq</span>
-                <span class="pill pill-purple">FAISS + BM25 Hybrid Search</span>
-                <span class="pill pill-yellow">BAAI/bge-large-en-v1.5</span>
-            </div>
+    st.markdown("""
+    <div class="hero">
+        <div class="hero-eyebrow">Zyro Dynamics — Internal HR Platform</div>
+        <div class="hero-title">HR Help Desk <span>powered by AI</span></div>
+        <div class="hero-sub">
+            Ask any question about company policies — leave entitlements,
+            compensation, performance reviews, WFH arrangements, POSH
+            guidelines, and more. All answers are grounded in official
+            Zyro Dynamics HR documents.
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        <div class="pill-row">
+            <span class="pill pill-online">● Enter Groq key to begin</span>
+            <span class="pill pill-model">LLaMA 3.3 · 70B via Groq</span>
+            <span class="pill pill-search">FAISS + BM25 Hybrid</span>
+            <span class="pill pill-docs">BAAI/bge-large-en-v1.5</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     st.info(
-        "👈 **Enter your Groq API Key** in the sidebar to initialise the HR assistant.  \n"
+        "👈 **Enter your Groq API Key** in the sidebar to start.  \n"
         "Get a free key at [console.groq.com](https://console.groq.com).",
         icon="🔑",
     )
     st.stop()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# BUILD PIPELINE
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════
+#  BUILD PIPELINE
+# ══════════════════════════════════════════════════════════════
 try:
-    ask_bot, vectorstore = build_pipeline(groq_key)
-    meta    = getattr(ask_bot, "_meta", {"n_docs": "—", "n_chunks": "—"})
-    n_docs  = meta["n_docs"]
-    n_vecs  = vectorstore.index.ntotal
+    ask_bot, vectorstore, n_docs, n_chunks = build_pipeline(groq_key)
+    n_vecs = vectorstore.index.ntotal
 except Exception as exc:
-    st.error(f"Failed to initialise pipeline: {exc}")
-    st.code(traceback.format_exc())
+    st.error(f"Pipeline initialisation failed: {exc}")
+    with st.expander("Full traceback"):
+        st.code(traceback.format_exc())
     st.stop()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HERO BANNER  (shown after pipeline loads)
-# ─────────────────────────────────────────────────────────────────────────────
-st.markdown(
-    f"""
-    <div class="hero-banner">
-        <div class="hero-tagline">Zyro Dynamics — Internal HR Platform</div>
-        <div class="hero-title">HR Help Desk <em>powered by AI</em></div>
-        <div class="hero-desc">
-            Ask any question about company policies — leave entitlements, compensation,
-            performance reviews, WFH arrangements, POSH guidelines, and more.
-            Answers are grounded in official Zyro Dynamics HR documents.
-        </div>
-        <div class="hero-pills">
-            <span class="pill pill-green">● SYSTEM ONLINE</span>
-            <span class="pill pill-blue">LLAMA 3.3 · 70B VIA GROQ</span>
-            <span class="pill pill-purple">FAISS SEMANTIC SEARCH</span>
-            <span class="pill pill-yellow">{n_docs} POLICY DOCUMENTS · {n_vecs} CHUNKS</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STATS DASHBOARD
-# ─────────────────────────────────────────────────────────────────────────────
-st.markdown(
-    f"""
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-number">{n_docs}</div>
-            <div class="stat-label">Policy Documents</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{n_vecs}</div>
-            <div class="stat-label">Vector Chunks</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{st.session_state.generated_responses}</div>
-            <div class="stat-label">Queries Answered</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" style="font-size:1.3rem;color:#a78bfa">LLaMA 3.3</div>
-            <div class="stat-label">70B · Groq Inference</div>
-        </div>
+# ══════════════════════════════════════════════════════════════
+#  HERO BANNER  (shown after pipeline loads)
+# ══════════════════════════════════════════════════════════════
+st.markdown(f"""
+<div class="hero">
+    <div class="hero-eyebrow">Zyro Dynamics — Internal HR Platform</div>
+    <div class="hero-title">HR Help Desk <span>powered by AI</span></div>
+    <div class="hero-sub">
+        Ask any question about company policies — leave entitlements,
+        compensation, performance reviews, WFH arrangements, POSH
+        guidelines, and more. Answers are grounded in official Zyro
+        Dynamics HR documents.
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    <div class="pill-row">
+        <span class="pill pill-online">● SYSTEM ONLINE</span>
+        <span class="pill pill-model">LLAMA 3.3 · 70B VIA GROQ</span>
+        <span class="pill pill-search">FAISS SEMANTIC SEARCH</span>
+        <span class="pill pill-docs">{n_docs} POLICY DOCUMENTS · {n_vecs} CHUNKS</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# RENDER CHAT HISTORY
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════
+#  STATS DASHBOARD
+# ══════════════════════════════════════════════════════════════
+st.markdown(f"""
+<div class="stats">
+    <div class="stat">
+        <div class="stat-val">{n_docs}</div>
+        <div class="stat-lbl">Policy Documents</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{n_vecs}</div>
+        <div class="stat-lbl">Vector Chunks</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val">{st.session_state.queries_answered}</div>
+        <div class="stat-lbl">Queries Answered</div>
+    </div>
+    <div class="stat">
+        <div class="stat-val purple">LLaMA 3.3</div>
+        <div class="stat-lbl">70B · Groq Inference</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+#  RENDER CHAT HISTORY
+# ══════════════════════════════════════════════════════════════
+def _render_assistant_msg(msg: dict) -> None:
+    if not msg.get("in_scope", True):
+        st.markdown(f'<div class="oos-box">⚠️ {msg["content"]}</div>',
+                    unsafe_allow_html=True)
+    else:
+        st.markdown(msg["content"])
+
+    if msg.get("sources"):
+        n = len(msg["sources"])
+        with st.expander(f"📚 Source citations ({n} document{'s' if n != 1 else ''} referenced)",
+                         expanded=False):
+            badges = ""
+            for s in msg["sources"]:
+                cat = f'<span class="src-cat">{s["category"]}</span>' if s.get("category") else ""
+                badges += (
+                    f'<span class="src-badge">📑 {s["file"]}'
+                    f'<span class="src-page">page {s["page"]}</span>'
+                    f'{cat}</span>'
+                )
+            st.markdown(f'<div class="src-wrap">{badges}</div>', unsafe_allow_html=True)
+
+    if msg.get("elapsed"):
+        st.markdown(f'<div class="rt-chip">⏱️ Response time: {msg["elapsed"]:.2f}s</div>',
+                    unsafe_allow_html=True)
+
+
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
-            if not msg.get("in_scope", True):
-                st.markdown(
-                    f'<div class="oos-box">⚠️ {msg["content"]}</div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(msg["content"])
-
-            # Source citations
-            if msg.get("sources"):
-                label = f"📚 View Sources & Citations ({len(msg['sources'])} documents referenced)"
-                with st.expander(label, expanded=False):
-                    for s in msg["sources"]:
-                        cat_tag = f" · <em>{s.get('category','')}</em>" if s.get("category") else ""
-                        st.markdown(
-                            f'<span class="src-badge">📑 {s["file"]}'
-                            f'<span class="src-page">page {s["page"]}</span>'
-                            f'{cat_tag}</span>',
-                            unsafe_allow_html=True,
-                        )
-
-            # Response time chip
-            elapsed = msg.get("elapsed")
-            if elapsed:
-                st.markdown(
-                    f'<div class="rt-chip">⏱️ Response time: {elapsed:.2f}s</div>',
-                    unsafe_allow_html=True,
-                )
+            _render_assistant_msg(msg)
         else:
             st.markdown(msg["content"])
 
-# ─────────────────────────────────────────────────────────────────────────────
-# QUESTION HANDLER
-# ─────────────────────────────────────────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════════
+#  QUESTION HANDLER
+# ══════════════════════════════════════════════════════════════
 def handle_question(prompt: str) -> None:
-    # Append user message
     st.session_state.chat_history.append({"role": "user", "content": prompt})
 
     with st.chat_message("user"):
@@ -768,81 +817,49 @@ def handle_question(prompt: str) -> None:
 
     with st.chat_message("assistant"):
         with st.spinner("🔍 Searching HR policy documents…"):
-            t0     = time.perf_counter()
+            t0 = time.perf_counter()
             try:
                 result = ask_bot(prompt)
             except Exception as exc:
                 result = {
-                    "answer"  : f"⚠️ An error occurred: {exc}. Please try again.",
+                    "answer"  : f"⚠️ Unexpected error: {exc}. Please try again.",
                     "sources" : [],
                     "in_scope": True,
                 }
             elapsed = time.perf_counter() - t0
 
-        answer   = result["answer"]
-        sources  = result.get("sources", [])
-        in_scope = result.get("in_scope", True)
+        msg = {
+            "role"    : "assistant",
+            "content" : result["answer"],
+            "sources" : result.get("sources", []),
+            "in_scope": result.get("in_scope", True),
+            "elapsed" : elapsed,
+        }
+        _render_assistant_msg(msg)
 
-        if not in_scope:
-            st.markdown(
-                f'<div class="oos-box">⚠️ {answer}</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(answer)
+    st.session_state.chat_history.append(msg)
+    st.session_state.queries_answered += 1
 
-        if sources:
-            label = f"📚 View Sources & Citations ({len(sources)} documents referenced)"
-            with st.expander(label, expanded=True):
-                for s in sources:
-                    cat_tag = f" · <em>{s.get('category','')}</em>" if s.get("category") else ""
-                    st.markdown(
-                        f'<span class="src-badge">📑 {s["file"]}'
-                        f'<span class="src-page">page {s["page"]}</span>'
-                        f'{cat_tag}</span>',
-                        unsafe_allow_html=True,
-                    )
 
-        st.markdown(
-            f'<div class="rt-chip">⏱️ Response time: {elapsed:.2f}s</div>',
-            unsafe_allow_html=True,
-        )
-
-    # Persist to session state
-    st.session_state.chat_history.append({
-        "role"    : "assistant",
-        "content" : answer,
-        "sources" : sources,
-        "in_scope": in_scope,
-        "elapsed" : elapsed,
-    })
-    st.session_state.generated_responses += 1
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HANDLE SIDEBAR SAMPLE CLICK
-# ─────────────────────────────────────────────────────────────────────────────
+# ── sidebar sample click ──────────────────────────────────────
 if st.session_state.pending_question:
     q = st.session_state.pending_question
     st.session_state.pending_question = None
     handle_question(q)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHAT INPUT
-# ─────────────────────────────────────────────────────────────────────────────
+# ── live chat input ───────────────────────────────────────────
 if prompt := st.chat_input("Ask a question about Zyro Dynamics HR policies…"):
     handle_question(prompt)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# INFO BAR
-# ─────────────────────────────────────────────────────────────────────────────
-st.markdown(
-    f"""
-    <div class="info-bar">
-        🔍 Retrieval method: <strong>FAISS cosine similarity + BM25 keyword (Ensemble)</strong> ·
-        Model: <strong>LLaMA-3.3-70B-Versatile</strong> ·
-        Embeddings: <strong>BAAI/bge-large-en-v1.5</strong> ·
-        Answers are grounded in policy documents only — hallucinations are actively suppressed.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+
+# ══════════════════════════════════════════════════════════════
+#  INFO FOOTER
+# ══════════════════════════════════════════════════════════════
+st.markdown("""
+<div class="info-bar">
+    🔍 Retrieval: <b>FAISS cosine similarity + BM25 keyword (70 / 30 ensemble)</b> ·
+    Model: <b>LLaMA-3.3-70B-Versatile via Groq</b> ·
+    Embeddings: <b>BAAI/bge-large-en-v1.5</b> ·
+    Answers are grounded in policy documents only — hallucinations are actively suppressed.
+</div>
+""", unsafe_allow_html=True)
